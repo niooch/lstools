@@ -1,0 +1,2 @@
+# LSTools
+Agregat tablicy ladunkow 
