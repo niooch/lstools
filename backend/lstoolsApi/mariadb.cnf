@@ -1,0 +1,5 @@
+[client]
+database = lstools
+user = lstoolsapi
+password = iYRZute8aR56yWiRJ2fmCU4EC
+default-character-set = utf8mb4
