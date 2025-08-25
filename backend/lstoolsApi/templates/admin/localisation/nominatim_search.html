@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+<div class="module aligned">
+  <h1>{% trans "Lookup via Nominatim" %}</h1>
+
+  <form method="get" action="" style="margin-bottom:1rem;">
+    <label for="id_q">{% trans "Place name" %}</label>
+    <input type="text" name="q" id="id_q" value="{{ q|default_if_none:'' }}" style="min-width:320px;">
+    <label for="id_limit">{% trans "Limit" %}</label>
+    <input type="number" name="limit" id="id_limit" value="{{ limit|default:10 }}" min="1" max="50" style="width:80px;">
+    <button type="submit" class="button">{% trans "Search" %}</button>
+  </form>
+
+  {% if q and not results %}
+    <p><em>{% trans "No results." %}</em></p>
+  {% endif %}
+
+  {% if results %}
+    <table class="listing">
+      <thead>
+        <tr>
+          <th>{% trans "Display name" %}</th>
+          <th>{% trans "Latitude" %}</th>
+          <th>{% trans "Longitude" %}</th>
+          <th>{% trans "Actions" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr>
+          <td>{{ r.display_name }}</td>
+          <td>{{ r.lat }}</td>
+          <td>{{ r.lon }}</td>
+          <td>
+            <a class="button" href="{{ add_url_base }}?name={{ q|urlencode }}&latitude={{ r.lat|urlencode }}&longitude={{ r.lon|urlencode }}">
+              {% trans "Use this" %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}
+
