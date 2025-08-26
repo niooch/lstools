@@ -16,8 +16,14 @@ class UserSerializer(serializers.ModelSerializer):
                 "description",
                 "phone_number",
                 "avatar",
+                "is_email_verified",
+                "email_verified_at",
                 )
-        read_only_fields = ("id", "username", "email")
+        read_only_fields = ("id", 
+                            "username", 
+                            "email",
+                            "is_email_verified",
+                            "email_verified_at")
 
 class MeUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,7 +39,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("username", "email", "password", "first_name", "last_name")
+        fields = ("username",
+                  "email",
+                  "password",
+                  "first_name",
+                  "last_name")
 
     def validate_password(self, value):
         validate_password(value)
