@@ -23,6 +23,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+APPEND_SLASH = False
+
 
 # Application definition
 
@@ -37,8 +39,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework.authtoken',
-    'drf_spectacular',
     'django_filters',
+    'drf_spectacular',
     #local
     'api',
     'users',
@@ -66,6 +68,16 @@ CORS_ALLOWED_ORIGINS = [
         ]
 CORS_ALLOW_CREDENTIALS = True
 
+CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'transports-cache',
+            }
+        }
+
+OSRM_CACHE_TTL_SECONDS = int(os.getenv("OSRM_CACHE_TTL_SECONDS", 86400) ) #default 1 day
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -76,6 +88,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'core.pagination.DefaultPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'COERCE_DECIMAL_TO_STRING': True,
 }
 
 SIMPLE_JWT = {
@@ -119,6 +132,9 @@ DATABASES = {
             'read_default_file': '/home/kogut/projekt/backend/lstoolsApi/mariadb.cnf',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine='INNODB'",
         },
+        'TEST': {
+            'NAME': 'test_lstools',
+        },
     }
 }
 
@@ -142,12 +158,28 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'LSTools API',
-    'DESCRIPTION': 'API for LSTools application',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    # OTHER SETTINGS
-    }
+    "TITLE": "LS Tools API",
+    "DESCRIPTION": "Logistics routes marketplace API (users, localisations, vehicles, routes).",
+    "VERSION": "1.0.0",
+    "SERVERS": [
+        {"url": "http://127.0.0.1:8000", "description": "Local dev"},
+    ],
+    "CONTACT": {"name": "Jakub Kogut", "email": "admin@lstool.co"},
+    "LICENSE": {"name": "Proprietary"},
+    "COMPONENT_SPLIT_REQUEST": True,   # nicer request/response separation
+    "SECURITY": [{"bearerAuth": []}],  # use JWT in Swagger “Authorize”
+    "AUTHENTICATION_WHITELIST": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # add any others you use
+    ],
+    "TAGS": [
+        {"name": "Transport", "description": "Vehicle types & routes"},
+        {"name": "Localisations", "description": "Geo points catalog"},
+        {"name": "Auth", "description": "JWT & email verification"},
+        {"name": "Users", "description": "User profile endpoints"},
+    ],
+}
+
 AUTH_USER_MODEL = 'users.User'
 
 

@@ -12,6 +12,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .tokens import email_verification_token
 from .emails import send_verification_email
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiExample
+
 
 User = get_user_model()
 
@@ -65,6 +69,16 @@ class RegisterView(generics.CreateAPIView):
         headers = self.get_success_headers(serializer.data)
         return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Verify email",
+    description="Click-through from the verification email. Marks the account as verified.",
+    parameters=[
+        OpenApiParameter("uid", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
+        OpenApiParameter("token", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
+    ],
+    responses={200: OpenApiTypes.OBJECT},
+)
 class VerifyEmailView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -90,6 +104,19 @@ class VerifyEmailView(APIView):
         user.save(update_fields=["is_email_verified", "email_verified_at"])
         return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Resend verification email",
+    description="If authenticated, no body is needed. Anonymous may send {'email': 'you@example.com'}. Always responds generically.",
+    examples=[
+        OpenApiExample(
+            "Anonymous resend",
+            value={"email": "eve@example.com"},
+            request_only=True,
+        )
+    ],
+    responses={200: OpenApiTypes.OBJECT},
+)
 class ResendVerificationView(APIView):
     """
     Accepts either:
