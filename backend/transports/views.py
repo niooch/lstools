@@ -9,6 +9,7 @@ from rest_framework import viewsets, permissions, filters as drf_filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status as drf_status
+from rest_framework.throttling import ScopedRateThrottle
 
 from rest_framework.views import APIView
 from django.db.models import Count, Sum, Avg, Q, F
@@ -138,13 +139,33 @@ class RouteViewSet(viewsets.ModelViewSet):
             ]
     ordering_fields = ["time_start", "time_end", "length_km", "price", "created_at"]
 
+    throttle_classes = [ScopedRateThrottle]
+    
+    def get_throttles(self):
+        self.throttle_scope = "routes-write" if self.action in {
+                "create", "update", "partial_update", "destroy", "sell", "cancel"
+                } else None
+        return super().get_throttles()
+
     def get_queryset(self):
         qs = (
-                Route.objects.select_related("origin", "destination", "vehicle_type", "owner").order_by("-created_at")
+                Route.objects.select_related("origin", "destination", "vehicle_type", "owner")
+                .prefetch_related("stops__localisation")
+                .order_by("-created_at")
                 )
-        if "status" not in self.request.query_params and "active" not in self.request.query_params:
-            qs = qs.filter(status=RouteStatus.ACTIVE)
+        if getattr(self, "action", None) == "list": 
+            if "status" not in self.request.query_params and "active" not in self.request.query_params:
+                qs = qs.filter(status=RouteStatus.ACTIVE)
         return qs
+
+    def get_object(self):
+        obj = (
+                Route.objects
+                .select_related("origin", "destination", "vehicle_type", "owner")
+                .get(pk=self.kwargs["pk"])
+                )
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def perform_destroy(self, instance):
         instance.mark_cancelled()
@@ -182,7 +203,6 @@ class RouteViewSet(viewsets.ModelViewSet):
         ser = self.get_serializer(qs, many=True)
         return Response(ser.data)
 
-    # ---------- NEW: My history (sold & cancelled) ----------
     @extend_schema(
             tags=["Transport"],
             summary="My route history (SOLD/CANCELLED)",
@@ -233,6 +253,11 @@ class RouteViewSet(viewsets.ModelViewSet):
         route = self.get_object()
         self.check_object_permissions(request, route)
         price_override = request.data.get("price")
+
+        if price_override is not None:
+            route.price = price_override          # <- write to the 'price' field
+            route.save(update_fields=["price", "updated_at"])
+
         route.mark_sold()
         return Response(RouteSerializer(route, context=self.get_serializer_context()).data)
 

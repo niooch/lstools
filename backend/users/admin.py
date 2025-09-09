@@ -16,8 +16,9 @@ class UserAdmin(DjangoUserAdmin):
                 "fields": ("username", "email", "password1", "password2"),
                 }),
             )
-    list_display = ("id", "username", "email", "is_staff")
+    list_display = ("id", "username", "email", "nickname_color", "is_staff")
     search_fields = ("username", "email", "first_name", "last_name")
+    readonly_fields = ("last_login", "date_joined", "is_email_verified", "email_verified_at", "nickname_color")
     ordering = ("id",)
 
 

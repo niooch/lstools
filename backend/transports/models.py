@@ -9,7 +9,7 @@ from django.utils import timezone
 
 class RouteStatus(models.TextChoices):
     ACTIVE = "active", "Active"
-    COMPLETED = "completed", "Completed"
+    SOLD = "sold", "Sold"
     CANCELLED = "cancelled", "Cancelled"
     EXPIRED = "expired", "Expired"
 

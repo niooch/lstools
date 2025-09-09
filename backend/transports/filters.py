@@ -53,6 +53,9 @@ class RouteFilter(df.FilterSet):
     vehicle_type = df.ModelChoiceFilter(queryset=VehicleType.objects.filter(is_active=True))
     vehicle_type_slug = df.CharFilter(field_name="vehicle_type__slug", lookup_expr="iexact")
 
+    vehicle_category = df.CharFilter(field_name="vehicle_type__category", lookup_expr="iexact")
+    vehicle_attribute = df.CharFilter(field_name="vehicle_type__attribute", lookup_expr="iexact")
+
     # Date-based (backwards compatibility)
     available_on = df.DateFilter(method="filter_available_on")
     date_from = df.DateFilter(method="filter_date_from")
@@ -74,6 +77,7 @@ class RouteFilter(df.FilterSet):
         model = Route
         fields = [
             "vehicle_type", "vehicle_type_slug",
+            "vehicle_category", "vehicle_attribute",
             "available_on", "date_from", "date_to",
             "dt_from", "dt_to", "available_at",
             "origin_near", "destination_near",

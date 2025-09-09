@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'core',
     'localisations',
     'transports',
+    'chat',
 ]
 
 MIDDLEWARE = [
@@ -65,6 +66,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://localhost:5137",
+        "http://127.0.0.1:5173",
         ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -89,6 +91,13 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'COERCE_DECIMAL_TO_STRING': True,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+        ],
+    'DEFAULT_THROTTLE_RATES': {
+        'chat': '30/minute',
+        'routes-write': '30/hour',
+        },
 }
 
 SIMPLE_JWT = {
