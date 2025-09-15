@@ -29,6 +29,8 @@ class User(AbstractUser):
     is_email_verified = models.BooleanField(default=False)
     email_verified_at = models.DateTimeField(null=True, blank=True)
     nickname_color = models.CharField(max_length=7, validators=[HEX_COLOR], default="", blank=True)
+    bio = models.TextField(blank=True)
+    display_name = models.CharField(max_length=100, blank=True)
     def save(self, *args, **kwargs):
         if not self.nickname_color:
             seed = str(self.pk) if self.pk else self.username or self.email or "default"

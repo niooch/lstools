@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions, generics
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, RegisterSerializer, MeUpdateSerializer
+from .serializers import UserSerializer, RegisterSerializer, MeUpdateSerializer, MeSerializer, PublicUserSerializer
 from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -17,7 +17,22 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiExample
 
 
+
 User = get_user_model()
+
+class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all().order_by("id")
+    serializer_class = PublicUserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=["get", "patch"], url_path="me")
+    def me(self, request):
+        if request.method.lower() == "get":
+            return Response(MeSerializer(request.user).data)
+        ser = MeSerializer(request.user, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)
 
 class IsSelfOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):

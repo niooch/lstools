@@ -72,6 +72,7 @@ class RouteFilter(df.FilterSet):
     origin_q = df.CharFilter(method="filter_origin_q")                 # place name via Nominatim
     destination_q = df.CharFilter(method="filter_destination_q")       # place name via Nominatim
     radius_km = df.NumberFilter(method="noop")                         # companion for *_q (defaults to 10)
+    owner = df.NumberFilter(field_name="owner_id")
 
     class Meta:
         model = Route
@@ -82,6 +83,7 @@ class RouteFilter(df.FilterSet):
             "dt_from", "dt_to", "available_at",
             "origin_near", "destination_near",
             "origin_q", "destination_q", "radius_km",
+            "owner",
         ]
 
     def noop(self, qs, name, value):

@@ -1,8 +1,39 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from transports.models import Route, RouteStatus
 
 User = get_user_model()
+
+class PublicUserSerializer(serializers.ModelSerializer):
+    route_stats = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("id", 
+                  "username", 
+                  "display_name",
+                  "nickname_color",
+                  "bio",
+                  "route_stats")
+        read_only_fields = ("id", "username")
+
+    def get_route_stats(self, obj):
+        qs = Route.objects.filter(owner=obj)
+        return {
+                "active": qs.filter(status=RouteStatus.ACTIVE).count(),
+                "sold": qs.filter(status=RouteStatus.SOLD).count(),
+                "cancelled": qs.filter(status=RouteStatus.CANCELLED).count(),
+                "total": qs.count(),
+                }
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id", "username", "email",
+            "display_name", "bio", "phone_number", "nickname_color",
+        )
+        read_only_fields = ("id", "username", "email", "nickname_color")
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
