@@ -1,10 +1,18 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import VehicleType, Route, RouteStatus, RouteStop, CrewType, Currency
+from .models import VehicleType, Route, RouteStatus, RouteStop, CrewType, Currency, RoutePhoto
 from . import services as svc
 
 User = get_user_model()
+
+class RoutePhotoSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(use_url=True)
+
+    class Meta:
+        model = RoutePhoto
+        fields = ("id", "image", "caption", "created_at")
+        read_only_fields = ("id", "created_at")
 
 class VehicleTypeSerializer(serializers.ModelSerializer):
     class Meta:

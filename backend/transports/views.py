@@ -1,6 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import VehicleType, Route, RouteStatus
-from .serializers import VehicleTypeSerializer, RouteSerializer
+from .models import VehicleType, Route, RouteStatus, RoutePhoto
+from .serializers import VehicleTypeSerializer, RouteSerializer, RoutePhotoSerializer
 from .permissions import IsOwnerOrReadOnly, IsEmailVerifiedOrReadOnly
 from .filters import RouteFilter
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample, OpenApiParameter
@@ -10,6 +10,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status as drf_status
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import mixins
 
 from rest_framework.views import APIView
 from django.db.models import Count, Sum, Avg, Q, F
@@ -140,6 +142,28 @@ class RouteViewSet(viewsets.ModelViewSet):
     ordering_fields = ["time_start", "time_end", "length_km", "price", "created_at"]
 
     throttle_classes = [ScopedRateThrottle]
+
+    @action(
+        detail=True, methods=["get", "post"], url_path="photos",
+        parser_classes=[MultiPartParser, FormParser]
+    )
+    def photos(self, request, pk=None):
+        route = self.get_object()
+        if request.method.lower() == "get":
+            qs = route.photos.all()
+            return Response(RoutePhotoSerializer(qs, many=True, context=self.get_serializer_context()).data)
+
+        # POST: owner or staff only
+        if not (request.user.is_staff or route.owner_id == request.user.id):
+            return Response({"detail": "Forbidden"}, status=403)
+        image = request.data.get("image")
+        if not image:
+            return Response({"image": ["This field is required."]}, status=400)
+        caption = request.data.get("caption", "")
+        photo = RoutePhoto.objects.create(route=route, image=image, caption=caption, uploaded_by=request.user)
+        return Response(RoutePhotoSerializer(photo, context=self.get_serializer_context()).data, status=201)
+
+
     
     def get_throttles(self):
         self.throttle_scope = "routes-write" if self.action in {
@@ -261,6 +285,24 @@ class RouteViewSet(viewsets.ModelViewSet):
         route.mark_sold()
         return Response(RouteSerializer(route, context=self.get_serializer_context()).data)
 
+class RoutePhotoViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    queryset = RoutePhoto.objects.select_related("route", "uploaded_by")
+    serializer_class = RoutePhotoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not (user.is_staff or instance.route.owner_id == user.id):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Forbidden")
+        # try removing the file from storage after row deletion
+        storage, name = instance.image.storage, instance.image.name
+        super().perform_destroy(instance)
+        if name:
+            try:
+                storage.delete(name)
+            except Exception:
+                pass
 
 @extend_schema(
         tags=["Transport"],

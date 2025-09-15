@@ -6,6 +6,21 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from uuid import uuid4
+
+def route_photo_upload_to(instance, filename):
+    ext = (filename.rsplit(".", 1)[-1] or "").lower()
+    return f"routes/{instance.route_id}/{timezone.now():%Y/%m}/{uuid4().hex}.{ext}"
+
+class RoutePhoto(TimestampedModel):
+    route = models.ForeignKey("transports.Route", on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to=route_photo_upload_to)
+    caption = models.CharField(max_length=200, blank=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="route_photos")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["route", "created_at"])]
 
 class RouteStatus(models.TextChoices):
     ACTIVE = "active", "Active"

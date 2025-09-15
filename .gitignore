@@ -2,3 +2,4 @@ mapydysk*
 .env
 __pycache__*
 .cnf
+/media

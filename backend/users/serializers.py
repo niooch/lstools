@@ -2,8 +2,22 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from transports.models import Route, RouteStatus
+from .models import VerificationDocument, VerificationStatus
 
 User = get_user_model()
+
+class VerificationDocumentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VerificationDocument
+        fields = ("kind", "file")
+
+class VerificationDocumentSerializer(serializers.ModelSerializer):
+    file = serializers.FileField(use_url=True)
+
+    class Meta:
+        model = VerificationDocument
+        fields = ("id", "kind", "file", "status", "admin_note", "created_at", "reviewed_at")
+        read_only_fields = ("id", "status", "admin_note", "created_at", "reviewed_at")
 
 class PublicUserSerializer(serializers.ModelSerializer):
     route_stats = serializers.SerializerMethodField()

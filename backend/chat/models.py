@@ -8,6 +8,7 @@ class Message(TimestampedModel):
     content = models.TextField()
     route = models.ForeignKey("transports.Route", null=True, blank=True, on_delete=models.SET_NULL, related_name="chat_messages")
     deleted_at = models.DateTimeField(null=True, blank=True)
+    image = models.ImageField(upload_to="chat/%Y/%m", null=True, blank=True)
 
     class Meta:
         ordering = ["-id"]

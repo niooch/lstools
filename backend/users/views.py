@@ -1,13 +1,12 @@
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, permissions, generics
+from rest_framework import viewsets, permissions, generics, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, RegisterSerializer, MeUpdateSerializer, MeSerializer, PublicUserSerializer
+from .serializers import UserSerializer, RegisterSerializer, MeUpdateSerializer, MeSerializer, PublicUserSerializer, VerificationDocumentSerializer, VerificationDocumentCreateSerializer
 from django.utils.http import urlsafe_base64_decode
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .tokens import email_verification_token
@@ -15,6 +14,10 @@ from .emails import send_verification_email
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiExample
+from .models import VerificationDocument, VerificationStatus
+from transports.permissions import IsEmailVerifiedOrReadOnly
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from django.core.exceptions import PermissionDenied
 
 
 
@@ -162,4 +165,36 @@ class ResendVerificationView(APIView):
 
         # Generic response
         return Response({"detail": "If the account exists and is unverified, an email was sent."})
+
+class VerificationDocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = VerificationDocumentSerializer
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+    queryset = VerificationDocument.objects.all()
+
+    # hard-bypass global perms here; we’ll check auth ourselves
+    permission_classes = [permissions.AllowAny]
+    def get_permissions(self):
+        return [permissions.AllowAny()]
+
+    def get_queryset(self):
+        u = getattr(self.request, "user", None)
+        if not u or not u.is_authenticated:
+            return VerificationDocument.objects.none()
+        return VerificationDocument.objects.filter(user=u).order_by("-created_at")
+
+    def get_serializer_class(self):
+        return VerificationDocumentCreateSerializer if self.action == "create" else VerificationDocumentSerializer
+
+    def perform_create(self, serializer):
+        u = getattr(self.request, "user", None)
+        if not u or not u.is_authenticated:
+            raise PermissionDenied("Authentication required.")
+        serializer.save(user=u)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != VerificationStatus.PENDING and not request.user.is_staff:
+            from rest_framework.response import Response
+            return Response({"detail": "Cannot delete after review."}, status=400)
+        return super().destroy(request, *args, **kwargs)
 

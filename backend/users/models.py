@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 import colorsys, hashlib
+from uuid import uuid4
+from django.utils import timezone
+from core.models import TimestampedModel
 
 HEX_COLOR=RegexValidator(
         r"^#[0-9A-Fa-f]{6}$",
@@ -40,4 +43,30 @@ class User(AbstractUser):
     def __str__(self):
         return self.username or self.email
 
+def verification_upload_to(instance, filename):
+    ext = (filename.rsplit(".", 1)[-1] or "").lower()
+    return f"verification/{instance.user_id}/{timezone.now():%Y/%m}/{uuid4().hex}.{ext}"
 
+class VerificationKind(models.TextChoices):
+    ID = "id", "ID/Passport"
+    COMPANY = "company", "Company Document"
+    LICENSE = "license", "License"
+    OTHER = "other", "Other"
+
+class VerificationStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+class VerificationDocument(TimestampedModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="verification_docs")
+    kind = models.CharField(max_length=16, choices=VerificationKind.choices, default=VerificationKind.OTHER)
+    file = models.FileField(upload_to=verification_upload_to)
+    status = models.CharField(max_length=12, choices=VerificationStatus.choices, default=VerificationStatus.PENDING, db_index=True)
+    admin_note = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="verification_reviews")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "status", "created_at"])]

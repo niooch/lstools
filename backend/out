@@ -2,4 +2,4 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 /home/kogut/projekt/djangoenv/lib/python3.13/site-packages/MySQLdb/connections.py:280: KeyboardInterrupt
 (to show a full traceback on KeyboardInterrupt use --full-trace)
-no tests ran in 1.37s
+no tests ran in 5.22s

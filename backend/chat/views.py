@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters as drf_filters
-
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from .models import Message
 from .serializers import MessageSerializer
 from .permissions import IsSenderOrStaff
@@ -27,6 +27,8 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "chat"
+
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_permissions(self):
         if self.action in ["create"]:
@@ -58,9 +60,10 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         content = (self.request.data or {}).get("content", "")
-        if not content.strip():
+        image = (self.request.data or {}).get("image")
+        if (not content or not str(content).strip()) and not image:
             from rest_framework.exceptions import ValidationError
-            raise ValidationError({"content": "Content is required."})
+            raise ValidationError({"content": "Content or image is required."})
         serializer.save(user=self.request.user)
 
     def perform_destroy(self, instance):
