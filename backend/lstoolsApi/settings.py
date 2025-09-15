@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     #third party
     'rest_framework',
+    'django_extensions',
     'corsheaders',
     'rest_framework.authtoken',
     'django_filters',
@@ -63,6 +64,7 @@ MIDDLEWARE = [
 ]
 
 # CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://localhost:5137",
@@ -137,6 +139,7 @@ WSGI_APPLICATION = 'lstoolsApi.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'lstools',
         'OPTIONS': {
             'read_default_file': '/home/kogut/projekt/backend/lstoolsApi/mariadb.cnf',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine='INNODB'",

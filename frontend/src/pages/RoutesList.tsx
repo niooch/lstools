@@ -1,7 +1,7 @@
 // src/pages/RoutesList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import { Route } from "../types";
+import type { Route } from "../types";
 import dayjs from "dayjs";
 
 type Page<T> = { results?: T[]; count?: number; next?: string; previous?: string } | T[];

@@ -1,7 +1,7 @@
 // src/pages/MyRoutes.tsx
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Route } from "../types";
+import type { Route } from "../types";
 
 export default function MyRoutes() {
     const [tab, setTab] = useState<"active" | "history">("active");
