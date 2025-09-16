@@ -1,58 +1,563 @@
 // src/pages/RouteNew.tsx
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
+type Localisation = {
+  id: number;
+  name: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  lat?: number;
+  lon?: number;
+};
+
+type VehicleType = {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  is_active?: boolean;
+  category?: string | null;
+  attribute?: string | null; // single letter
+};
+
+type Crew = "single" | "double";
+
+const MAX_STOPS = 5;
+
 export default function RouteNew() {
-    const [form, setForm] = useState({
-        origin: "", destination: "", time_start: "", time_end: "",
-        vehicle_type: "", crew: "single", currency: "PLN", price: "", stop_ids: "" // comma-separated
-    });
-    const [err, setErr] = useState<string | null>(null);
-    const nav = useNavigate();
+  const nav = useNavigate();
 
-    async function submit(e: React.FormEvent) {
-        e.preventDefault();
-        setErr(null);
-        try {
-            const payload: any = {
-                origin: Number(form.origin),
-                destination: Number(form.destination),
-                time_start: new Date(form.time_start).toISOString(),
-                time_end: new Date(form.time_end).toISOString(),
-                vehicle_type: Number(form.vehicle_type),
-                crew: form.crew, currency: form.currency, price: form.price ? form.price : null,
-            };
-            const stopIds = form.stop_ids.split(",").map(s => s.trim()).filter(Boolean).map(Number);
-            if (stopIds.length) payload.stop_ids = stopIds;
+  const [locs, setLocs] = useState<Localisation[]>([]);
+  const [vehTypes, setVehTypes] = useState<VehicleType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-            const { data } = await api.post("/api/transport/routes", payload);
-            nav(`/routes`);
-        } catch (e: any) {
-            setErr(e.response?.data || e.message);
-        }
+  // form state by names (we’ll map to ids on submit)
+  const [originName, setOriginName] = useState("");
+  const [destName, setDestName] = useState("");
+  const [stopNames, setStopNames] = useState<string[]>([""]); // dynamic chain
+  const [timeStartStr, setTimeStartStr] = useState("");
+  const [timeEndStr, setTimeEndStr] = useState("");
+  const [vehName, setVehName] = useState("");
+  const [crew, setCrew] = useState<Crew>("single");
+  const [currency, setCurrency] = useState<"PLN" | "EUR">("PLN");
+  const [price, setPrice] = useState<string>("");
+
+  // pretty address for origin/dest (best effort)
+  const [originAddr, setOriginAddr] = useState<string | null>(null);
+  const [destAddr, setDestAddr] = useState<string | null>(null);
+
+  // quick lookup maps
+  const locByName = useMemo(() => {
+    const m: Record<string, Localisation> = {};
+    for (const l of locs) {
+      if (!l?.name) continue;
+      m[l.name.toLowerCase()] = l;
     }
+    return m;
+  }, [locs]);
 
-    return (
-        <form onSubmit={submit} style={{ display: "grid", gap: 10, maxWidth: 540 }}>
-        <h2>New Route</h2>
-        <input placeholder="origin ID" value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value })} required />
-        <input placeholder="destination ID" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} required />
-        <input type="datetime-local" value={form.time_start} onChange={(e) => setForm({ ...form, time_start: e.target.value })} required />
-        <input type="datetime-local" value={form.time_end} onChange={(e) => setForm({ ...form, time_end: e.target.value })} required />
-        <input placeholder="vehicle type ID" value={form.vehicle_type} onChange={(e) => setForm({ ...form, vehicle_type: e.target.value })} required />
-        <select value={form.crew} onChange={(e) => setForm({ ...form, crew: e.target.value })}>
-        <option value="single">single</option>
-        <option value="double">double</option>
-        </select>
-        <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
-        <option>PLN</option><option>EUR</option>
-        </select>
-        <input placeholder="price (optional)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-        <input placeholder="stop ids (comma sep, up to 5)" value={form.stop_ids} onChange={(e) => setForm({ ...form, stop_ids: e.target.value })} />
-        <button type="submit">Create</button>
-        {err ? <pre style={{ color: "crimson", whiteSpace: "pre-wrap" }}>{JSON.stringify(err, null, 2)}</pre> : null}
+  const vehByName = useMemo(() => {
+    const m: Record<string, VehicleType> = {};
+    for (const v of vehTypes) m[v.name.toLowerCase()] = v;
+    return m;
+  }, [vehTypes]);
+
+  // load lists (with pagination, and with endpoint fallbacks)
+  useEffect(() => {
+    let on = true;
+    async function loadAll() {
+      try {
+        setLoading(true);
+        setErr(null);
+
+        const locsAll = await fetchAllLocalisations();
+        const vehAll = await fetchAllVehicleTypes();
+
+        if (!on) return;
+        setLocs(locsAll);
+        setVehTypes(vehAll);
+      } catch (e: any) {
+        if (!on) return;
+        setErr(e?.response?.data?.detail || "Failed to load dictionaries.");
+      } finally {
+        if (on) setLoading(false);
+      }
+    }
+    loadAll();
+    return () => { on = false; };
+  }, []);
+
+  // dynamic stops: ensure a trailing empty input until we hit MAX
+  useEffect(() => {
+    const trimmed = stopNames.map(s => s.trim());
+    const last = trimmed[trimmed.length - 1] ?? "";
+    if (trimmed.length < MAX_STOPS && last.length > 0) {
+      setStopNames(prev => [...prev, ""]);
+    }
+    // also, if there are trailing empties >1, squash to a single empty
+    if (trimmed.length > 1) {
+      let i = trimmed.length - 1;
+      let empties = 0;
+      while (i >= 0 && trimmed[i] === "") { empties++; i--; }
+      if (empties > 1) {
+        const base = trimmed.slice(0, trimmed.length - empties);
+        setStopNames([...base, ""]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopNames.join("|")]);
+
+  // fetch pretty address for a selected localisation (best effort)
+  useEffect(() => {
+    void resolveAddressFor(originName, setOriginAddr, locByName);
+  }, [originName, locByName]);
+  useEffect(() => {
+    void resolveAddressFor(destName, setDestAddr, locByName);
+  }, [destName, locByName]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (posting) return;
+    setErr(null);
+
+    try {
+      // validate names → ids
+      const originId = locByName[originName.trim().toLowerCase()]?.id;
+      const destId = locByName[destName.trim().toLowerCase()]?.id;
+      const vehId = vehByName[vehName.trim().toLowerCase()]?.id;
+
+      if (!originId) throw new Error(`Unknown origin: "${originName}"`);
+      if (!destId) throw new Error(`Unknown destination: "${destName}"`);
+      if (!vehId) throw new Error(`Unknown vehicle type: "${vehName}"`);
+
+      const startISO = parseUserDateTime(timeStartStr);
+      const endISO = parseUserDateTime(timeEndStr);
+      if (!startISO) throw new Error(`Invalid start time (use hh:mm DD/MM/YYYY)`);
+      if (!endISO) throw new Error(`Invalid end time (use hh:mm DD/MM/YYYY)`);
+
+      // stops: keep only non-empty and map
+      const stopIds: number[] = stopNames
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, MAX_STOPS)
+        .map((name) => {
+          const id = locByName[name.toLowerCase()]?.id;
+          if (!id) throw new Error(`Unknown stop localisation: "${name}"`);
+          return id;
+        });
+
+      const payload: any = {
+        origin: originId,
+        destination: destId,
+        time_start: startISO, // server expects ISO
+        time_end: endISO,
+        vehicle_type: vehId,
+        crew,
+        currency,
+        price: price ? price : null,
+      };
+      if (stopIds.length) payload.stop_ids = stopIds;
+
+      setPosting(true);
+      await api.post("/api/transport/routes", payload);
+      nav("/routes");
+    } catch (e: any) {
+      const msg =
+        typeof e?.message === "string"
+          ? e.message
+          : e?.response?.data?.detail || stringifyErrors(e?.response?.data) || "Failed to create route.";
+      setErr(msg);
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  // helpers
+  const allLocNames = useMemo(() => locs.map((l) => l.name).sort(), [locs]);
+  const allVehNames = useMemo(() => vehTypes.map((v) => v.name).sort(), [vehTypes]);
+
+  const selectedVeh = useMemo(() => vehByName[vehName.trim().toLowerCase()], [vehByName, vehName]);
+  const selectedVehLetter = selectedVeh?.attribute?.slice(0, 1)?.toUpperCase() || null;
+
+  return (
+    <div style={{ maxWidth: 860, margin: "0 auto" }}>
+      <h2 style={{ margin: "8px 0 16px" }}>Add a new route</h2>
+
+      {loading ? (
+        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>Loading dictionaries…</div>
+      ) : (
+        <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
+          {err && (
+            <div style={{ color: "#8b0000", background: "#ffecec", border: "1px solid #ffd0d0", padding: 10, borderRadius: 8 }}>
+              {String(err)}
+            </div>
+          )}
+
+          {/* localisation quick hint list */}
+          <div style={{ fontSize: 13, opacity: 0.75 }}>
+            Known localisation codes:{" "}
+            <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+              {allLocNames.slice(0, 20).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    // smart paste into first empty localisation field
+                    if (!originName) setOriginName(n);
+                    else if (!stopNames.find((s) => !s.trim())) setStopNames((prev) => [...prev, n]);
+                    else {
+                      // fill first empty stop
+                      const idx = stopNames.findIndex((s) => !s.trim());
+                      if (idx >= 0) setStopNames((prev) => prev.map((s, i) => (i === idx ? n : s)));
+                      else if (!destName) setDestName(n);
+                    }
+                  }}
+                  style={{
+                    fontFamily: "monospace",
+                    border: "1px dashed #ddd",
+                    padding: "2px 6px",
+                    borderRadius: 999,
+                    background: "#fafafa",
+                    cursor: "pointer",
+                  }}
+                  title="Click to fill"
+                >
+                  {n}
+                </button>
+              ))}
+              {allLocNames.length > 20 && <span>…(+{allLocNames.length - 20} more)</span>}
+            </span>
+          </div>
+
+          {/* shared datalist for localisation names */}
+          <datalist id="loc-options">
+            {allLocNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+
+          {/* origin */}
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 600 }}>Origin (localisation code)</label>
+            <input
+              list="loc-options"
+              placeholder="e.g. SZZ1"
+              value={originName}
+              onChange={(e) => setOriginName(e.target.value)}
+              required
+            />
+            {originAddr ? <div style={{ fontSize: 12, opacity: 0.8 }}>📍 {originAddr}</div> : null}
+          </div>
+
+          {/* stops (dynamic) */}
+          <div style={{ display: "grid", gap: 8 }}>
+            <label style={{ fontWeight: 600 }}>Stops (optional, up to {MAX_STOPS})</label>
+            <div style={{ display: "grid", gap: 8 }}>
+              {stopNames.slice(0, MAX_STOPS).map((name, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    list="loc-options"
+                    placeholder={i === 0 ? "Add a stop code (auto-adds next)" : "Stop code"}
+                    value={name}
+                    onChange={(e) =>
+                      setStopNames((prev) => prev.map((s, idx) => (idx === i ? e.target.value : s)))
+                    }
+                  />
+                  {name.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStopNames((prev) => prev.filter((_, idx) => idx !== i));
+                      }}
+                      title="Remove stop"
+                      style={{
+                        border: "1px solid #eee",
+                        background: "#fafafa",
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* destination */}
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 600 }}>Destination (localisation code)</label>
+            <input
+              list="loc-options"
+              placeholder="e.g. WRO1"
+              value={destName}
+              onChange={(e) => setDestName(e.target.value)}
+              required
+            />
+            {destAddr ? <div style={{ fontSize: 12, opacity: 0.8 }}>📍 {destAddr}</div> : null}
+          </div>
+
+          {/* times */}
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontWeight: 600 }}>Time start (hh:mm DD/MM/YYYY)</label>
+              <input
+                placeholder="13:15 21/09/2025"
+                value={timeStartStr}
+                onChange={(e) => setTimeStartStr(e.target.value)}
+                required
+              />
+            </div>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontWeight: 600 }}>Time end (hh:mm DD/MM/YYYY)</label>
+              <input
+                placeholder="17:45 21/09/2025"
+                value={timeEndStr}
+                onChange={(e) => setTimeEndStr(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          {/* vehicle type (by name) + attribute bubble */}
+          <datalist id="veh-options">
+            {allVehNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 600 }}>Vehicle type (by name)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                list="veh-options"
+                placeholder="e.g. Van"
+                value={vehName}
+                onChange={(e) => setVehName(e.target.value)}
+                required
+              />
+              {selectedVehLetter && (
+                <span
+                  title={`Attribute: ${selectedVehLetter}`}
+                  style={{
+                    display: "inline-grid",
+                    placeItems: "center",
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    border: "1px solid #ddd",
+                    background: "#fff",
+                    fontWeight: 700,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {selectedVehLetter}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* crew selector with icons */}
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 600 }}>Crew</label>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <CrewOption
+                label="Single"
+                icon="/icons/crew-single.png"
+                active={crew === "single"}
+                onClick={() => setCrew("single")}
+              />
+              <CrewOption
+                label="Double"
+                icon="/icons/crew-double.png"
+                active={crew === "double"}
+                onClick={() => setCrew("double")}
+              />
+            </div>
+          </div>
+
+          {/* price & currency */}
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontWeight: 600 }}>Price (optional)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                placeholder="e.g. 1200.00"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+            </div>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontWeight: 600 }}>Currency</label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value as any)}>
+                <option value="PLN">PLN</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+            <button type="submit" disabled={posting} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #ddd" }}>
+              {posting ? "Creating…" : "Create route"}
+            </button>
+            <button
+              type="button"
+              onClick={() => nav(-1)}
+              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #eee", background: "#fafafa" }}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
-    );
+      )}
+    </div>
+  );
 }
 
+/* ---------- helpers ---------- */
+
+function stringifyErrors(data: any): string | null {
+  if (!data || typeof data !== "object") return null;
+  try {
+    return Object.entries(data)
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+      .join("\n");
+  } catch {
+    return null;
+  }
+}
+
+function parseUserDateTime(s: string): string | null {
+  // expected hh:mm DD/MM/YYYY
+  const m = s.trim().match(/^(\d{2}):(\d{2})\s+(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, hh, mm, dd, MM, yyyy] = m;
+  const h = Number(hh), mmin = Number(mm), d = Number(dd), M = Number(MM), y = Number(yyyy);
+  if (h > 23 || mmin > 59) return null;
+  const dt = new Date(y, M - 1, d, h, mmin, 0, 0);
+  if (isNaN(dt.getTime())) return null;
+  return dt.toISOString(); // send ISO; server handles TZ
+}
+
+async function resolveAddressFor(
+  name: string,
+  set: (s: string | null) => void,
+  locMap: Record<string, Localisation>
+) {
+  try {
+    set(null);
+    const loc = locMap[name.trim().toLowerCase()];
+    if (!loc) return;
+    const lat = (loc.latitude ?? loc.lat) as any;
+    const lon = (loc.longitude ?? loc.lon) as any;
+    if (lat == null || lon == null) return;
+
+    // best-effort: reuse backend nominatim proxy to avoid CORS
+    const q = `${lat},${lon}`;
+    const r = await api.get("/api/geo/search", { params: { q, limit: 1 } }).catch(() => null as any);
+    const arr = (r?.data as any[]) || [];
+    if (arr.length && (arr[0].display_name || arr[0].name)) {
+      set(arr[0].display_name || arr[0].name);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function CrewOption({
+  label,
+  icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  icon: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 10px",
+        borderRadius: 10,
+        border: "1px solid " + (active ? "#4f46e5" : "#e5e7eb"),
+        background: active ? "#eef2ff" : "#fff",
+        cursor: "pointer",
+      }}
+      title={label}
+    >
+      <img src={icon} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+      <span>{label}</span>
+      {active && (
+        <span style={{ marginLeft: 4, fontSize: 12, opacity: 0.8 }}>✓</span>
+      )}
+    </button>
+  );
+}
+
+/* ---------- data fetchers with fallback ---------- */
+
+async function fetchAllLocalisations(): Promise<Localisation[]> {
+  // try proper path first
+  const all = await fetchAllPaginated<Localisation>("/api/localisations");
+  if (all.length) return all;
+  // fallback for the typo path if needed
+  try {
+    const alt = await fetchAllPaginated<Localisation>("/api/localistations");
+    return alt;
+  } catch {
+    return all;
+  }
+}
+
+async function fetchAllVehicleTypes(): Promise<VehicleType[]> {
+  try {
+    const v = await fetchAllPaginated<VehicleType>("/api/transport/vehicle-types");
+    if (v.length) return v;
+  } catch {
+    // fall through
+  }
+  try {
+    const v2 = await fetchAllPaginated<VehicleType>("/api/vehicle-types");
+    return v2;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchAllPaginated<T = any>(url: string): Promise<T[]> {
+  const out: T[] = [];
+  let next: string | null = url;
+  // tolerate both paginated and unpaginated responses
+  while (next) {
+    const r = await api.get(next);
+    const data = r.data;
+    if (Array.isArray(data)) {
+      out.push(...(data as T[]));
+      break;
+    }
+    if (data?.results && Array.isArray(data.results)) {
+      out.push(...(data.results as T[]));
+      next = data.next || null;
+    } else if (data) {
+      // maybe a single object?
+      out.push(data as T);
+      break;
+    } else {
+      break;
+    }
+  }
+  return out;
+}

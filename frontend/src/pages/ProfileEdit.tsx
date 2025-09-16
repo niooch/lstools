@@ -1,74 +1,266 @@
 // src/pages/ProfileEdit.tsx
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
-import type { UserProfileMe } from "../types";
+
+type MeResponse = {
+  id: number;
+  username: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  description?: string | null;
+  phone_number?: string | null;
+  is_email_verified?: boolean;
+  email_verified_at?: string | null;
+};
 
 export default function ProfileEdit() {
-  const [me, setMe] = useState<UserProfileMe | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const nav = useNavigate();
 
-  async function load() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    description: "",
+    is_email_verified: false,
+    email_verified_at: "" as string | null,
+  });
+
+  useEffect(() => {
+    void loadMe();
+  }, []);
+
+  async function loadMe() {
+    setLoading(true);
+    setErr(null);
+    setOk(null);
     try {
-      const { data } = await api.get("/api/users/profiles/me");
-      setMe(data);
+      const r = await api.get<MeResponse>("/api/users/me");
+      const u = r.data;
+      setForm({
+        username: u.username || "",
+        email: u.email || "",
+        first_name: u.first_name || "",
+        last_name: u.last_name || "",
+        phone_number: u.phone_number || "",
+        description: u.description || "",
+        is_email_verified: !!u.is_email_verified,
+        email_verified_at: u.email_verified_at || null,
+      });
     } catch (e: any) {
-      setErr(e.response?.data?.detail || "Failed to fetch profile");
+      setErr(e?.response?.data?.detail || "Failed to load profile.");
+    } finally {
+      setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []);
-
   async function save() {
-    if (!me) return;
     setSaving(true);
     setErr(null);
+    setOk(null);
     try {
-      const payload = {
-        display_name: me.display_name || "",
-        bio: me.bio || "",
-        phone_number: me.phone_number || "",
-      };
-      const { data } = await api.patch("/api/users/profiles/me", payload);
-      setMe(data);
+      // 1) core account update
+      await api.patch("/api/users/me/update", {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone_number: form.phone_number,
+      });
+
+      // 2) bio/profile update
+      await api.patch("/api/users/profiles/me", {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone_number: form.phone_number,
+        description: form.description,
+      });
+
+      setOk("Profile updated!");
     } catch (e: any) {
-      setErr(e.response?.data || "Failed to save");
+      const data = e?.response?.data;
+      if (data && typeof data === "object") {
+        const msg = Object.entries(data)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v[0] : v}`)
+          .join("\n");
+        setErr(msg || "Save failed.");
+      } else {
+        setErr("Save failed.");
+      }
     } finally {
       setSaving(false);
     }
   }
 
-  if (err) return <div style={{ color: "crimson" }}>{String(err)}</div>;
-  if (!me) return <div>Loading…</div>;
+  function onChange<K extends keyof typeof form>(key: K, val: (typeof form)[K]) {
+    setForm((p) => ({ ...p, [key]: val }));
+  }
 
   return (
-    <div style={{ maxWidth: 640, display: "grid", gap: 12 }}>
-      <h2>My profile</h2>
-      <div>
-        <div style={{ fontSize: 14, opacity: 0.8 }}>Logged in as</div>
-        <div><strong>{me.username}</strong> · <span style={{ color: me.nickname_color }}>color</span></div>
-        <div style={{ opacity: 0.8 }}>{me.email}</div>
+    <div style={page}>
+      <div style={headerRow}>
+        <h1 style={{ margin: 0, fontSize: 24 }}>Edit profile</h1>
+        <button onClick={() => nav(-1)} style={btnGhost}>Back</button>
       </div>
 
-      <label>
-        Display name
-        <input value={me.display_name || ""} onChange={(e) => setMe({ ...me, display_name: e.target.value })} />
-      </label>
+      {loading ? (
+        <div style={card}>Loading…</div>
+      ) : (
+        <div style={card}>
 
-      <label>
-        Bio
-        <textarea rows={4} value={me.bio || ""} onChange={(e) => setMe({ ...me, bio: e.target.value })} />
-      </label>
+          {/* top meta */}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 14, opacity: 0.7 }}>@{form.username || "username"}</div>
+            <VerifiedPill verified={form.is_email_verified} at={form.email_verified_at} />
+          </div>
 
-      <label>
-        Phone number
-        <input value={me.phone_number || ""} onChange={(e) => setMe({ ...me, phone_number: e.target.value })} />
-      </label>
+          <div style={gridTwo}>
+            <Field label="First name">
+              <input
+                value={form.first_name}
+                onChange={(e) => onChange("first_name", e.target.value)}
+                style={input}
+              />
+            </Field>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button disabled={saving} onClick={save}>{saving ? "Saving…" : "Save"}</button>
-        <button onClick={load}>Reset</button>
-      </div>
+            <Field label="Last name">
+              <input
+                value={form.last_name}
+                onChange={(e) => onChange("last_name", e.target.value)}
+                style={input}
+              />
+            </Field>
+
+            <Field label="Email">
+              <input value={form.email} style={input} disabled title="Email change disabled here" />
+            </Field>
+
+            <Field label="Phone number">
+              <input
+                value={form.phone_number}
+                onChange={(e) => onChange("phone_number", e.target.value)}
+                placeholder="+48 123 456 789"
+                style={input}
+              />
+            </Field>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Field label="About me">
+                <textarea
+                  rows={5}
+                  value={form.description}
+                  onChange={(e) => onChange("description", e.target.value)}
+                  placeholder="Tell others a bit about you…"
+                  style={{ ...input, resize: "vertical" }}
+                />
+                <div style={hint}>{form.description.length} characters</div>
+              </Field>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button onClick={() => void save()} disabled={saving} style={btnPrimary}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+            <button onClick={() => void loadMe()} style={btnGhost}>Reset</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+function VerifiedPill({ verified, at }: { verified?: boolean; at?: string | null }) {
+  const bg = verified ? "#e9f7ef" : "#fff5f5";
+  const color = verified ? "#0f7b5f" : "#b42525";
+  const border = verified ? "#bfe7d7" : "#f2c2c2";
+  const dot = verified ? "#13ae85" : "#e34949";
+  const title = verified && at ? `Verified at ${new Date(at).toLocaleString()}` : "Not verified";
+
+  return (
+    <span title={title} style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "6px 10px",
+      borderRadius: 999,
+      background: bg,
+      color,
+      border: `1px solid ${border}`,
+      fontSize: 12,
+      fontWeight: 600
+    }}>
+      <span style={{ width: 10, height: 10, borderRadius: "50%", background: dot }} />
+      {verified ? "Email verified" : "Email not verified"}
+    </span>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "grid", gap: 6 }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/* ---- styles ---- */
+const page: React.CSSProperties = {
+  maxWidth: 800,
+  margin: "0 auto",
+  padding: 16,
+  display: "grid",
+  gap: 12,
+};
+
+const headerRow: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+};
+
+const card: React.CSSProperties = {
+  border: "1px solid #e5e7eb",
+  borderRadius: 16,
+  padding: 16,
+  background: "#fff",
+  boxShadow: "0 2px 10px rgba(0,0,0,.04)",
+};
+
+const gridTwo: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 12,
+};
+
+const input: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  outline: "none",
+};
+
+const hint: React.CSSProperties = { fontSize: 12, opacity: 0.6, marginTop: 4 };
+
+const btnPrimary: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  cursor: "pointer",
+};
+
+const btnGhost: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+  cursor: "pointer",
+};
