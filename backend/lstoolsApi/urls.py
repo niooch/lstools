@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from localisations.views import nominatim_proxy
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -11,7 +12,9 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path("api/users/", include("users.urls")),
     path("api/auth/", include("users.auth_urls")),
+    path("api/geo/search", nominatim_proxy),
     path("api/localisations/", include("localisations.urls")),
+    path("api/", include("localisations.urls")),
     path("api/transport/", include("transports.urls")),
     path("api/chat/", include("chat.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

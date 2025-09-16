@@ -167,7 +167,6 @@ class ResendVerificationView(APIView):
         return Response({"detail": "If the account exists and is unverified, an email was sent."})
 
 class VerificationDocumentViewSet(viewsets.ModelViewSet):
-    serializer_class = VerificationDocumentSerializer
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     queryset = VerificationDocument.objects.all()
 

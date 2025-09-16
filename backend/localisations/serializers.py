@@ -3,12 +3,16 @@ from .models import Localisation
 
 class LocalisationSerializer(serializers.ModelSerializer):
     created_by = serializers.StringRelatedField(read_only=True)
+    lat = serializers.FloatField(source="latitude", read_only=True)
+    lon = serializers.FloatField(source="longitude", read_only=True)
 
     class Meta:
         model = Localisation
         fields = (
             "id",
             "name",
+            "lat",
+            "lon",
             "latitude",
             "longitude",
             "created_by",

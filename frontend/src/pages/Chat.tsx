@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { resolveUrl } from "../lib/media";
 import { getLastId, mergeUnique } from "../lib/chat";
@@ -39,7 +40,9 @@ export default function Chat() {
   const lastIdRef = useRef<number | null>(null);
   const [autoStick, setAutoStick] = useState(true);
   const autoStickRef = useRef(true);
-  useEffect(() => { autoStickRef.current = autoStick; }, [autoStick]);
+  useEffect(() => {
+    autoStickRef.current = autoStick;
+  }, [autoStick]);
 
   // how many new messages arrived while user was scrolled up
   const [pendingNew, setPendingNew] = useState(0);
@@ -207,23 +210,40 @@ export default function Chat() {
           <div>No messages yet.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
-            {messages.map((m) => (
-              <div key={m.id} style={{ display: "grid", gap: 6, borderBottom: "1px dashed #eee", paddingBottom: 8 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                  <strong style={{ color: m.user?.nickname_color }}>
-                    {m.user?.display_name || m.user?.username || "?"}
-                  </strong>
-                  <span style={{ fontSize: 12, opacity: 0.6 }}>{new Date(m.created_at).toLocaleString()}</span>
-                  {m.route_label && <span style={{ fontSize: 12, opacity: 0.7 }}>· {m.route_label}</span>}
-                </div>
-                {m.content && <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>}
-                {m.image && (
-                  <div>
-                    <img src={resolveUrl(m.image)} alt="chat attachment" style={{ maxWidth: "100%", borderRadius: 10 }} />
+            {messages.map((m) => {
+              const display = m.user?.display_name || m.user?.username || "?";
+              const uid = m.user?.id;
+
+              return (
+                <div key={m.id} style={{ display: "grid", gap: 6, borderBottom: "1px dashed #eee", paddingBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                    {uid ? (
+                      <Link
+                        to={`/users/${uid}`}
+                        style={{
+                          color: m.user?.nickname_color,
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                        title={`Open ${display}'s profile`}
+                      >
+                        {display}
+                      </Link>
+                    ) : (
+                      <strong style={{ color: m.user?.nickname_color }}>{display}</strong>
+                    )}
+                    <span style={{ fontSize: 12, opacity: 0.6 }}>{new Date(m.created_at).toLocaleString()}</span>
+                    {m.route_label && <span style={{ fontSize: 12, opacity: 0.7 }}>· {m.route_label}</span>}
                   </div>
-                )}
-              </div>
-            ))}
+                  {m.content && <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>}
+                  {m.image && (
+                    <div>
+                      <img src={resolveUrl(m.image)} alt="chat attachment" style={{ maxWidth: "100%", borderRadius: 10 }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -267,8 +287,7 @@ export default function Chat() {
           </button>
         </div>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
-          Tip: press <kbd>Enter</kbd> to send (use <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line). You can also send an
-          image-only message.
+          Tip: press <kbd>Enter</kbd> to send (use <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line). You can also send an image-only message.
         </div>
       </div>
     </div>

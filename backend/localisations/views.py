@@ -5,6 +5,11 @@ from .serializers import LocalisationSerializer
 from .filters import LocalisationFilter
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.filters import SearchFilter, OrderingFilter
+from localisations import services as geo_svc 
 
 @extend_schema_view(
     list=extend_schema(
@@ -23,14 +28,37 @@ from drf_spectacular.types import OpenApiTypes
     retrieve=extend_schema(tags=["Localisations"], summary="Get a localisation"),
 )
 class LocalisationViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Read-only list/retrieve. Creation is via the Django admin by superusers.
-    """
-    queryset = Localisation.objects.all().order_by("-created_at")
+    permission_classes = [AllowAny]
     serializer_class = LocalisationSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
-    filterset_class = LocalisationFilter
+    queryset = Localisation.objects.all()
+    filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ["name"]
-    ordering_fields = ["created_at", "name", "latitude", "longitude"]
+    ordering_fields = ["id", "name"]
+    ordering = ["name"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        # Bulk filters: ?ids=1,2  or  ?id__in=1,2
+        raw = self.request.query_params.get("ids") or self.request.query_params.get("id__in")
+        if raw:
+            try:
+                id_list = [int(x) for x in raw.split(",") if x.strip().isdigit()]
+                if id_list:
+                    qs = qs.filter(id__in=id_list)
+            except ValueError:
+                pass
+        return qs
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def nominatim_proxy(request):
+    q = request.query_params.get("q", "").strip()
+    if not q:
+        return Response({"detail": "q required"}, status=400)
+    hits = geo_svc.nominatim_search(q, limit=1)
+    if not hits:
+        return Response({"point": None, "label": q})
+    lat = float(hits[0]["lat"])
+    lon = float(hits[0]["lon"])
+    return Response({"point": {"lat": lat, "lon": lon}, "label": hits[0].get("display_name", q)})

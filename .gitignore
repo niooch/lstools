@@ -2,4 +2,5 @@ mapydysk*
 .env
 __pycache__*
 .cnf
-/media
+#ignore the media directory
+*/media/*
