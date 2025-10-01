@@ -337,6 +337,7 @@ export default function RoutesList() {
               <th style={th}>Vehicle</th>
               <th style={th}>User</th>
               <th style={th}>Price</th>
+              <th style={{ textAlign: "right", whiteSpace: "nowrap" }}>More</th>
             </tr>
           </thead>
           <tbody>
@@ -453,6 +454,25 @@ export default function RoutesList() {
                       <div>{priceLabel}</div>
                       <div style={subline}>{ppkLabel}</div>
                     </div>
+                  </td>
+
+                  <td style={{ textAlign: "right" }}>
+                  <Link
+                  to={`/routes/${r.id}`}
+                  style={{
+                      display: "inline-block",
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
+                      background: "#fff",
+                      textDecoration: "none",
+                      color: "#111",
+                      fontSize: 13,
+                  }}
+                  title="Open route details"
+                  >
+                  Details →
+                  </Link>
                   </td>
                 </tr>
               );
