@@ -9,10 +9,16 @@ type MeResponse = {
   email: string;
   first_name?: string | null;
   last_name?: string | null;
-  description?: string | null;
-  phone_number?: string | null;
+  description?: string | null;      // lives on /me/update (core)
+  phone_number?: string | null;     // lives on /me/update (core)
   is_email_verified?: boolean;
   email_verified_at?: string | null;
+};
+
+type ProfileMeResponse = {
+  display_name?: string | null;     // lives on /profiles/me
+  nickname_color?: string | null;   // lives on /profiles/me
+  bio?: string | null;              // lives on /profiles/me
 };
 
 export default function ProfileEdit() {
@@ -24,12 +30,20 @@ export default function ProfileEdit() {
   const [ok, setOk] = useState<string | null>(null);
 
   const [form, setForm] = useState({
+    // core account
     username: "",
     email: "",
     first_name: "",
     last_name: "",
     phone_number: "",
     description: "",
+
+    // profile fields
+    display_name: "",
+    nickname_color: "#111111",
+    bio: "",
+
+    // meta
     is_email_verified: false,
     email_verified_at: "" as string | null,
   });
@@ -43,17 +57,31 @@ export default function ProfileEdit() {
     setErr(null);
     setOk(null);
     try {
-      const r = await api.get<MeResponse>("/api/users/me");
-      const u = r.data;
+      const [coreRes, profileRes] = await Promise.all([
+        api.get<MeResponse>("/api/users/me"),
+        api.get<ProfileMeResponse>("/api/users/profiles/me"),
+      ]);
+
+      const core = coreRes.data;
+      const prof = profileRes.data;
+
       setForm({
-        username: u.username || "",
-        email: u.email || "",
-        first_name: u.first_name || "",
-        last_name: u.last_name || "",
-        phone_number: u.phone_number || "",
-        description: u.description || "",
-        is_email_verified: !!u.is_email_verified,
-        email_verified_at: u.email_verified_at || null,
+        // core
+        username: core.username || "",
+        email: core.email || "",
+        first_name: core.first_name || "",
+        last_name: core.last_name || "",
+        phone_number: core.phone_number || "",
+        description: core.description || "",
+
+        // profile
+        display_name: prof.display_name || "",
+        nickname_color: prof.nickname_color || "#111111",
+        bio: prof.bio || "",
+
+        // meta
+        is_email_verified: !!core.is_email_verified,
+        email_verified_at: core.email_verified_at || null,
       });
     } catch (e: any) {
       setErr(e?.response?.data?.detail || "Failed to load profile.");
@@ -69,17 +97,17 @@ export default function ProfileEdit() {
     try {
       // 1) core account update
       await api.patch("/api/users/me/update", {
-        first_name: form.first_name,
-        last_name: form.last_name,
-        phone_number: form.phone_number,
+        first_name: form.first_name || "",
+        last_name: form.last_name || "",
+        phone_number: form.phone_number || "",
+        description: form.description || "",
       });
 
-      // 2) bio/profile update
+      // 2) public profile update
       await api.patch("/api/users/profiles/me", {
-        first_name: form.first_name,
-        last_name: form.last_name,
-        phone_number: form.phone_number,
-        description: form.description,
+        display_name: form.display_name || "",
+        nickname_color: form.nickname_color || "#111111",
+        bio: form.bio || "",
       });
 
       setOk("Profile updated!");
@@ -87,7 +115,7 @@ export default function ProfileEdit() {
       const data = e?.response?.data;
       if (data && typeof data === "object") {
         const msg = Object.entries(data)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v[0] : v}`)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
           .join("\n");
         setErr(msg || "Save failed.");
       } else {
@@ -109,17 +137,29 @@ export default function ProfileEdit() {
         <button onClick={() => nav(-1)} style={btnGhost}>Back</button>
       </div>
 
+      {ok && (
+        <div style={bannerOk}>
+          {ok}
+        </div>
+      )}
+      {err && (
+        <div style={bannerErr}>
+          {err}
+        </div>
+      )}
+
       {loading ? (
         <div style={card}>Loading…</div>
       ) : (
         <div style={card}>
 
           {/* top meta */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ fontSize: 14, opacity: 0.7 }}>@{form.username || "username"}</div>
             <VerifiedPill verified={form.is_email_verified} at={form.email_verified_at} />
           </div>
 
+          {/* names + contact */}
           <div style={gridTwo}>
             <Field label="First name">
               <input
@@ -149,18 +189,56 @@ export default function ProfileEdit() {
                 style={input}
               />
             </Field>
+          </div>
 
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Field label="About me">
-                <textarea
-                  rows={5}
-                  value={form.description}
-                  onChange={(e) => onChange("description", e.target.value)}
-                  placeholder="Tell others a bit about you…"
-                  style={{ ...input, resize: "vertical" }}
+          {/* profile block */}
+          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 18 }}>Public profile</h3>
+
+            <div style={gridTwo}>
+              <Field label="Display name">
+                <input
+                  value={form.display_name}
+                  onChange={(e) => onChange("display_name", e.target.value)}
+                  placeholder="How others will see you"
+                  style={input}
                 />
-                <div style={hint}>{form.description.length} characters</div>
               </Field>
+
+              <Field label="Nickname color">
+                <input
+                  type="color"
+                  value={form.nickname_color}
+                  onChange={(e) => onChange("nickname_color", e.target.value)}
+                  style={{ ...input, padding: 6, height: 42 }}
+                />
+              </Field>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Field label="Bio">
+                  <textarea
+                    rows={5}
+                    value={form.bio}
+                    onChange={(e) => onChange("bio", e.target.value)}
+                    placeholder="Tell others a bit about you…"
+                    style={{ ...input, resize: "vertical" }}
+                  />
+                  <div style={hint}>{form.bio.length} characters</div>
+                </Field>
+              </div>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Field label="About me (private account field)">
+                  <textarea
+                    rows={4}
+                    value={form.description}
+                    onChange={(e) => onChange("description", e.target.value)}
+                    placeholder="Internal description on your account"
+                    style={{ ...input, resize: "vertical" }}
+                  />
+                  <div style={hint}>Saved to /api/users/me/update</div>
+                </Field>
+              </div>
             </div>
           </div>
 
@@ -263,4 +341,20 @@ const btnGhost: React.CSSProperties = {
   border: "1px solid #e5e7eb",
   background: "#fff",
   cursor: "pointer",
+};
+
+const bannerOk: React.CSSProperties = {
+  border: "1px solid #bfe7d7",
+  background: "#e9f7ef",
+  color: "#0f7b5f",
+  padding: 12,
+  borderRadius: 10,
+};
+
+const bannerErr: React.CSSProperties = {
+  border: "1px solid #f2c2c2",
+  background: "#fff5f5",
+  color: "#b42525",
+  padding: 12,
+  borderRadius: 10,
 };

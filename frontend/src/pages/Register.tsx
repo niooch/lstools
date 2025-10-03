@@ -1,8 +1,9 @@
+// src/pages/Register.tsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 
-const REGISTER_PATH = import.meta.env.VITE_AUTH_REGISTER || "/api/users/register";
+const REGISTER_PATH = (import.meta.env.VITE_AUTH_REGISTER as string) || "/api/users/register";
 
 type ServerErrors = Record<string, string[] | string>;
 
@@ -18,37 +19,49 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ServerErrors>({});
 
+  function setField<K extends keyof typeof form>(k: K, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+    // clear field-specific error when user edits
+    if (fieldErrors[k]) {
+      const next = { ...fieldErrors };
+      delete next[k];
+      setFieldErrors(next);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setFieldErrors({});
+
     if (!form.username || !form.email || !form.password) {
       setError("Please fill all required fields.");
       return;
     }
     if (form.password !== form.confirm) {
       setError("Passwords do not match.");
+      setFieldErrors((p) => ({ ...p, confirm: "Passwords do not match." }));
       return;
     }
+
     setSubmitting(true);
     try {
-      // Try the common payload. If your backend expects password1/password2,
-      // adjust the payload or set up the backend to accept this shape.
-      const payload = { username: form.username, email: form.email, password: form.password };
+      const payload = {
+        username: form.username.trim(),
+        email: form.email.trim(),
+        password: form.password,
+      };
       const r = await api.post(REGISTER_PATH, payload);
-      // Some backends return 201/200 empty; others return the created user.
       if (r.status === 200 || r.status === 201) {
-        // After register, send them to login
         nav("/login?registered=1");
       } else {
         setError("Registration failed. Try again.");
       }
     } catch (err: any) {
-      if (err?.response?.data) {
-        const data = err.response.data;
-        // show field errors if present
-        if (typeof data === "object") setFieldErrors(data as ServerErrors);
-        setError(data?.detail || "Registration failed.");
+      const data = err?.response?.data;
+      if (data && typeof data === "object") {
+        setFieldErrors(data as ServerErrors);
+        setError((data.detail as string) || "Registration failed.");
       } else {
         setError("Network error. Try again.");
       }
@@ -59,74 +72,177 @@ export default function Register() {
 
   const err = (k: keyof typeof form) =>
     fieldErrors?.[k] ? (
-      <div style={{ color: "crimson", fontSize: 12 }}>
+      <div style={styles.fieldError}>
         {Array.isArray(fieldErrors[k]) ? (fieldErrors[k] as string[]).join(", ") : String(fieldErrors[k])}
       </div>
     ) : null;
 
   return (
-    <div style={{ maxWidth: 460, margin: "0 auto", display: "grid", gap: 12 }}>
-      <h2>Create account</h2>
-      {error && <div style={{ color: "crimson" }}>{error}</div>}
-      <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
-        <label>
-          Username*
-          <input
-            value={form.username}
-            onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-            autoComplete="username"
-          />
-          {err("username")}
-        </label>
-
-        <label>
-          Email*
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            autoComplete="email"
-          />
-          {err("email")}
-        </label>
-
-        <label>
-          Password*
-          <input
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            autoComplete="new-password"
-          />
-          {/* if backend returns "password1/password2" errors they will show in fieldErrors below */}
-          {fieldErrors?.password1 && (
-            <div style={{ color: "crimson", fontSize: 12 }}>
-              {Array.isArray(fieldErrors.password1) ? fieldErrors.password1.join(", ") : String(fieldErrors.password1)}
-            </div>
-          )}
-        </label>
-
-        <label>
-          Confirm password*
-          <input
-            type="password"
-            value={form.confirm}
-            onChange={(e) => setForm((f) => ({ ...f, confirm: e.target.value }))}
-            autoComplete="new-password"
-          />
-          {fieldErrors?.password2 && (
-            <div style={{ color: "crimson", fontSize: 12 }}>
-              {Array.isArray(fieldErrors.password2) ? fieldErrors.password2.join(", ") : String(fieldErrors.password2)}
-            </div>
-          )}
-        </label>
-
-        <button disabled={submitting}>{submitting ? "Creating…" : "Create account"}</button>
-        <div style={{ fontSize: 14 }}>
-          Already have an account? <Link to="/login">Log in</Link>
+    <div style={styles.wrap}>
+      <div style={styles.card}>
+        <div style={styles.header}>
+          <h2 style={styles.h2}>Create account</h2>
+          <p style={styles.subtle}>
+            Already have an account?{" "}
+            <Link to="/login" style={styles.link}>
+              Log in
+            </Link>
+          </p>
         </div>
-      </form>
+
+        {error && (
+          <div style={styles.topError} role="alert" aria-live="polite">
+            {typeof error === "string" ? error : "Something went wrong."}
+          </div>
+        )}
+
+        <form onSubmit={submit} style={styles.form}>
+          <label style={styles.label}>
+            <span style={styles.labelText}>Username*</span>
+            <input
+              style={styles.input}
+              value={form.username}
+              onChange={(e) => setField("username", e.target.value)}
+              autoComplete="username"
+              disabled={submitting}
+              required
+            />
+            {err("username")}
+          </label>
+
+          <label style={styles.label}>
+            <span style={styles.labelText}>Email*</span>
+            <input
+              style={styles.input}
+              type="email"
+              value={form.email}
+              onChange={(e) => setField("email", e.target.value)}
+              autoComplete="email"
+              disabled={submitting}
+              required
+            />
+            {err("email")}
+          </label>
+
+          <label style={styles.label}>
+            <span style={styles.labelText}>Password*</span>
+            <input
+              style={styles.input}
+              type="password"
+              value={form.password}
+              onChange={(e) => setField("password", e.target.value)}
+              autoComplete="new-password"
+              disabled={submitting}
+              required
+            />
+            {/* Some backends return password1/password2 errors */}
+            {fieldErrors?.password1 && (
+              <div style={styles.fieldError}>
+                {Array.isArray(fieldErrors.password1)
+                  ? fieldErrors.password1.join(", ")
+                  : String(fieldErrors.password1)}
+              </div>
+            )}
+            {fieldErrors?.password && (
+              <div style={styles.fieldError}>
+                {Array.isArray(fieldErrors.password)
+                  ? fieldErrors.password.join(", ")
+                  : String(fieldErrors.password)}
+              </div>
+            )}
+          </label>
+
+          <label style={styles.label}>
+            <span style={styles.labelText}>Confirm password*</span>
+            <input
+              style={styles.input}
+              type="password"
+              value={form.confirm}
+              onChange={(e) => setField("confirm", e.target.value)}
+              autoComplete="new-password"
+              disabled={submitting}
+              required
+            />
+            {fieldErrors?.password2 && (
+              <div style={styles.fieldError}>
+                {Array.isArray(fieldErrors.password2)
+                  ? fieldErrors.password2.join(", ")
+                  : String(fieldErrors.password2)}
+              </div>
+            )}
+            {err("confirm")}
+          </label>
+
+          <button type="submit" style={styles.button} disabled={submitting}>
+            {submitting ? "Creating…" : "Create account"}
+          </button>
+
+          {/* Non-field / generic server errors */}
+          {fieldErrors?.non_field_errors && (
+            <div style={styles.fieldError}>
+              {Array.isArray(fieldErrors.non_field_errors)
+                ? fieldErrors.non_field_errors.join(", ")
+                : String(fieldErrors.non_field_errors)}
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   );
 }
 
+/* ---------- inline “design system” ---------- */
+const styles: Record<string, React.CSSProperties> = {
+  wrap: {
+    minHeight: "calc(100vh - 120px)",
+    display: "grid",
+    placeItems: "center",
+    padding: 16,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 520,
+    border: "1px solid #e5e7eb",
+    borderRadius: 16,
+    padding: 18,
+    background: "#fff",
+    boxShadow: "0 8px 24px rgba(0,0,0,.04)",
+  },
+  header: { display: "grid", gap: 6, marginBottom: 6 },
+  h2: { margin: 0, fontSize: 22 },
+  subtle: { margin: 0, fontSize: 14, opacity: 0.8 },
+  link: { color: "#0a58ca", textDecoration: "underline" },
+
+  topError: {
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    color: "#991b1b",
+    borderRadius: 10,
+    padding: "8px 10px",
+    margin: "8px 0",
+    fontSize: 14,
+  },
+
+  form: { display: "grid", gap: 12, marginTop: 8 },
+  label: { display: "grid", gap: 6 },
+  labelText: { fontWeight: 600, fontSize: 14 },
+  input: {
+    padding: "10px 12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: 10,
+    outline: "none",
+    fontSize: 14,
+  },
+  button: {
+    marginTop: 6,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #111",
+    background: "#111",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 14,
+  },
+  fieldError: { color: "crimson", fontSize: 12, lineHeight: 1.25 },
+};

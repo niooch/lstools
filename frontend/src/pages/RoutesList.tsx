@@ -27,9 +27,9 @@ type VehicleType = { id: number; name: string; attribute?: string | null };
 type UserPublic = {
   id: number;
   username: string;
-  display_name?: string | null;    // if your API exposes it
-  first_name?: string | null;      // fallback label support
-  last_name?: string | null;       // fallback label support
+  display_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 };
 
 type RouteRow = {
@@ -42,7 +42,6 @@ type RouteRow = {
   crew?: "single" | "double" | string;
   vehicle_type?: VehicleType | number | null;
 
-  // owner may be username string or a user object or an id
   owner?: string | UserPublic | number | null;
   user?: UserPublic | number | null;
   created_by?: UserPublic | number | null;
@@ -156,7 +155,7 @@ function getOwnerIdAndLabel(
     if (uname) {
       const u = userByUsername[uname];
       if (u) return { id: u.id, label: userLabel(u) };
-      return { label: uname }; // fallback text if not yet resolved
+      return { label: uname };
     }
     return { label: "—" };
   }
@@ -190,13 +189,34 @@ export default function RoutesList() {
   const [userByUsername, setUserByUsername] = useState<Record<string, UserPublic>>({});
   const allUsersLoadedRef = useRef(false);
 
-  const [q, setQ] = useState("");
+  // “Near” search + distance
+  const [qNear, setQNear] = useState("");
   const [radiusKm, setRadiusKm] = useState<number>(120);
   const [searchPoint, setSearchPoint] = useState<Point | null>(null);
   const [searchLabel, setSearchLabel] = useState<string>("");
-
   const [distById, setDistById] = useState<Record<number, number | null | undefined>>({});
   const fetchBusyRef = useRef(false);
+
+  // Filter panel state
+  const [filters, setFilters] = useState<{
+    originName: string;
+    destName: string;
+    startFrom: string; // datetime-local string
+    endUntil: string;  // datetime-local string
+    crew: "any" | "single" | "double";
+    sort: "none" | "price_asc" | "price_desc" | "ppk_asc" | "ppk_desc";
+  }>({
+    originName: "",
+    destName: "",
+    startFrom: "",
+    endUntil: "",
+    crew: "any",
+    sort: "none",
+  });
+
+  // Typeahead suggestions for origin/destination by name
+  const [originOpts, setOriginOpts] = useState<Localisation[]>([]);
+  const [destOpts, setDestOpts] = useState<Localisation[]>([]);
 
   const originOf = (r: RouteRow): Localisation | null =>
     typeof r.origin === "number" ? locById[r.origin] ?? null : (r.origin || null);
@@ -243,12 +263,12 @@ export default function RoutesList() {
       if (Object.keys(locMap).length) setLocById((prev) => ({ ...prev, ...locMap }));
       if (Object.keys(vehMap).length) setVehById((prev) => ({ ...prev, ...vehMap }));
 
-      // resolve owners: if any username strings and we haven't loaded all users yet, load them
+      // resolve owners
       const unresolved = [...userNamesNeeded].filter((uname) => !userByUsername[uname]);
       if (unresolved.length && !allUsersLoadedRef.current) {
         const { byId, byUsername } = await fetchAllUsers();
         allUsersLoadedRef.current = true;
-        if (Object.keys(byId).length) setUserById((prev) => ({ ...byId, ...prev, ...byId })); // ensure byId in
+        if (Object.keys(byId).length) setUserById((prev) => ({ ...byId, ...prev, ...byId }));
         if (Object.keys(byUsername).length) setUserByUsername((prev) => ({ ...byUsername, ...prev, ...byUsername }));
       }
     } catch (e: any) {
@@ -263,7 +283,7 @@ export default function RoutesList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // distance refresh for search point
+  // distance refresh for “near” point
   useEffect(() => {
     if (!searchPoint || rows.length === 0) {
       setDistById({});
@@ -288,40 +308,131 @@ export default function RoutesList() {
     });
   }, [searchPoint, rows, locById]);
 
-  async function onSearchSubmit(e: React.FormEvent) {
+  // ---------- typeahead search for localisations ----------
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void (async () => {
+        setOriginOpts(filters.originName.trim() ? await searchLocalisations(filters.originName.trim()) : []);
+      })();
+    }, 250);
+    return () => clearTimeout(t);
+  }, [filters.originName]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void (async () => {
+        setDestOpts(filters.destName.trim() ? await searchLocalisations(filters.destName.trim()) : []);
+      })();
+    }, 250);
+    return () => clearTimeout(t);
+  }, [filters.destName]);
+
+  // ---------- sidebar actions ----------
+  async function onApplyFilters(e: React.FormEvent) {
     e.preventDefault();
-    if (!q.trim()) {
-      setSearchPoint(null);
-      setSearchLabel("");
-      await loadRoutes();
-      return;
-    }
-    try {
-      const geo = await api.get(GEO_PROXY, { params: { q: q.trim() } });
-      const pt: Point | null =
-        geo?.data?.point &&
-        typeof geo.data.point.lat === "number" &&
-        typeof geo.data.point.lon === "number"
-          ? geo.data.point
-          : null;
-      if (pt) {
-        setSearchPoint(pt);
-        setSearchLabel(geo?.data?.label || q.trim());
-      } else {
+
+    // Resolve names → ids (prefer exact case-insensitive match from suggestions)
+    const originId = pickBestId(filters.originName, originOpts);
+    const destId = pickBestId(filters.destName, destOpts);
+
+    // Build server params (tolerant: if backend ignores unknown keys, fine)
+    const params: Record<string, any> = {};
+    if (originId) params.origin = originId;
+    if (destId) params.destination = destId;
+
+    if (filters.startFrom) params.time_start__gte = new Date(filters.startFrom).toISOString();
+    if (filters.endUntil) params.time_end__lte = new Date(filters.endUntil).toISOString();
+    if (filters.crew !== "any") params.crew = filters.crew;
+
+    // If “near” has value, try to geocode & include origin_q/radius_km like before
+    if (qNear.trim()) {
+      try {
+        const geo = await api.get(GEO_PROXY, { params: { q: qNear.trim() } });
+        const pt: Point | null =
+          geo?.data?.point &&
+          typeof geo.data.point.lat === "number" &&
+          typeof geo.data.point.lon === "number"
+            ? geo.data.point
+            : null;
+        if (pt) {
+          setSearchPoint(pt);
+          setSearchLabel(geo?.data?.label || qNear.trim());
+          params.origin_q = qNear.trim();
+          params.radius_km = radiusKm;
+        } else {
+          setSearchPoint(null);
+          setSearchLabel("");
+        }
+      } catch {
         setSearchPoint(null);
         setSearchLabel("");
       }
-    } catch {
+    } else {
       setSearchPoint(null);
       setSearchLabel("");
     }
-    await loadRoutes({ origin_q: q.trim(), radius_km: radiusKm });
+
+    await loadRoutes(params);
   }
 
+  function onClearFilters() {
+    setFilters({
+      originName: "",
+      destName: "",
+      startFrom: "",
+      endUntil: "",
+      crew: "any",
+      sort: "none",
+    });
+    setQNear("");
+    setSearchPoint(null);
+    setSearchLabel("");
+    void loadRoutes();
+  }
+
+  // ---------- computed rows with client-side sorting ----------
+  const displayedRows = useMemo(() => {
+    const arr = rows.slice();
+
+    const getPriceNum = (r: RouteRow) => {
+      const p = typeof r.price === "string" ? Number(r.price) : (r.price ?? NaN);
+      return Number.isFinite(p) ? (p as number) : NaN;
+    };
+    const getLenNum = (r: RouteRow) => {
+      if (r.length_km == null) return NaN;
+      return typeof r.length_km === "string" ? Number(r.length_km) : (r.length_km as number);
+    };
+    const getPPK = (r: RouteRow) => {
+      const p = getPriceNum(r);
+      const L = getLenNum(r);
+      if (!Number.isFinite(p) || !Number.isFinite(L) || L <= 0) return NaN;
+      return p / L;
+    };
+
+    switch (filters.sort) {
+      case "price_asc":
+        arr.sort((a, b) => (getPriceNum(a) - getPriceNum(b)));
+        break;
+      case "price_desc":
+        arr.sort((a, b) => (getPriceNum(b) - getPriceNum(a)));
+        break;
+      case "ppk_asc":
+        arr.sort((a, b) => (getPPK(a) - getPPK(b)));
+        break;
+      case "ppk_desc":
+        arr.sort((a, b) => (getPPK(b) - getPPK(a)));
+        break;
+      default:
+        break;
+    }
+    return arr;
+  }, [rows, filters.sort]);
+
+  // ---------- table ----------
   const table = useMemo(() => {
     if (loading) return <div>Loading…</div>;
     if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-    if (rows.length === 0) return <div>No routes found.</div>;
+    if (displayedRows.length === 0) return <div>No routes found.</div>;
 
     return (
       <div style={{ overflowX: "auto" }}>
@@ -341,7 +452,7 @@ export default function RoutesList() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {displayedRows.map((r) => {
               const o = originOf(r);
               const d = destinationOf(r);
               const sc = stopsCountOf(r);
@@ -457,22 +568,22 @@ export default function RoutesList() {
                   </td>
 
                   <td style={{ textAlign: "right" }}>
-                  <Link
-                  to={`/routes/${r.id}`}
-                  style={{
-                      display: "inline-block",
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      border: "1px solid #e5e7eb",
-                      background: "#fff",
-                      textDecoration: "none",
-                      color: "#111",
-                      fontSize: 13,
-                  }}
-                  title="Open route details"
-                  >
-                  Details →
-                  </Link>
+                    <Link
+                      to={`/routes/${r.id}`}
+                      style={{
+                        display: "inline-block",
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb",
+                        background: "#fff",
+                        textDecoration: "none",
+                        color: "#111",
+                        fontSize: 13,
+                      }}
+                      title="Open route details"
+                    >
+                      Details →
+                    </Link>
                   </td>
                 </tr>
               );
@@ -481,7 +592,7 @@ export default function RoutesList() {
         </table>
       </div>
     );
-  }, [rows, err, loading, distById, searchPoint, locById, userById, userByUsername, vehById]);
+  }, [displayedRows, err, loading, distById, searchPoint, locById, userById, userByUsername, vehById]);
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -489,41 +600,157 @@ export default function RoutesList() {
         <h2 style={{ margin: 0 }}>Routes</h2>
       </div>
 
-      <form onSubmit={onSearchSubmit} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <label style={{ fontWeight: 600 }}>Search near:</label>
-        <input
-          type="text"
-          placeholder="City or address"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8, minWidth: 240 }}
-        />
-        <label style={{ fontWeight: 600 }}>Radius:</label>
-        <select
-          value={radiusKm}
-          onChange={(e) => setRadiusKm(parseInt(e.target.value))}
-          style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(240px, 280px) 1fr",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        {/* Sidebar filters */}
+        <aside
+          style={{
+            border: "1px solid #eee",
+            borderRadius: 12,
+            padding: 12,
+            background: "#fff",
+            position: "sticky",
+            top: 8,
+          }}
         >
-          {[50, 80, 120, 200, 300].map((k) => (
-            <option key={k} value={k}>
-              {k} km
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff", cursor: "pointer" }}
-        >
-          Apply
-        </button>
-        {searchPoint && (
-          <span style={{ fontSize: 12, opacity: 0.8 }}>
-            Using: <em>{searchLabel}</em>
-          </span>
-        )}
-      </form>
+          <form onSubmit={onApplyFilters} style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Filter & sort</div>
 
-      {table}
+            <label style={lbl}>
+              <span>Origin (name)</span>
+              <input
+                list="origin-list"
+                value={filters.originName}
+                onChange={(e) => setFilters((p) => ({ ...p, originName: e.target.value }))}
+                placeholder="e.g. WRO1"
+                style={inp}
+              />
+              <datalist id="origin-list">
+                {originOpts.map((o) => (
+                  <option key={o.id} value={o.name} />
+                ))}
+              </datalist>
+            </label>
+
+            <label style={lbl}>
+              <span>Destination (name)</span>
+              <input
+                list="dest-list"
+                value={filters.destName}
+                onChange={(e) => setFilters((p) => ({ ...p, destName: e.target.value }))}
+                placeholder="e.g. SZZ1"
+                style={inp}
+              />
+              <datalist id="dest-list">
+                {destOpts.map((o) => (
+                  <option key={o.id} value={o.name} />
+                ))}
+              </datalist>
+            </label>
+
+            <label style={lbl}>
+              <span>Start from</span>
+              <input
+                type="datetime-local"
+                value={filters.startFrom}
+                onChange={(e) => setFilters((p) => ({ ...p, startFrom: e.target.value }))}
+                style={inp}
+              />
+            </label>
+
+            <label style={lbl}>
+              <span>End until</span>
+              <input
+                type="datetime-local"
+                value={filters.endUntil}
+                onChange={(e) => setFilters((p) => ({ ...p, endUntil: e.target.value }))}
+                style={inp}
+              />
+            </label>
+
+            <label style={lbl}>
+              <span>Crew</span>
+              <select
+                value={filters.crew}
+                onChange={(e) => setFilters((p) => ({ ...p, crew: e.target.value as any }))}
+                style={inp}
+              >
+                <option value="any">Any</option>
+                <option value="single">Single</option>
+                <option value="double">Double</option>
+              </select>
+            </label>
+
+            <label style={lbl}>
+              <span>Sort</span>
+              <select
+                value={filters.sort}
+                onChange={(e) => setFilters((p) => ({ ...p, sort: e.target.value as any }))}
+                style={inp}
+              >
+                <option value="none">—</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="price_desc">Price ↓</option>
+                <option value="ppk_asc">Price/km ↑</option>
+                <option value="ppk_desc">Price/km ↓</option>
+              </select>
+            </label>
+
+            <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
+
+            <div style={{ fontWeight: 700 }}>Near address (optional)</div>
+            <label style={lbl}>
+              <span>Search near</span>
+              <input
+                type="text"
+                placeholder="City or address"
+                value={qNear}
+                onChange={(e) => setQNear(e.target.value)}
+                style={inp}
+              />
+            </label>
+
+            <label style={lbl}>
+              <span>Radius</span>
+              <select
+                value={radiusKm}
+                onChange={(e) => setRadiusKm(parseInt(e.target.value))}
+                style={inp}
+              >
+                {[50, 80, 120, 200, 300].map((k) => (
+                  <option key={k} value={k}>
+                    {k} km
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {searchPoint && (
+              <div style={{ fontSize: 12, opacity: 0.8 }}>
+                Using: <em>{searchLabel}</em>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="submit" style={btn}>
+                Apply
+              </button>
+              <button type="button" onClick={onClearFilters} style={{ ...btn, background: "#f9fafb" }}>
+                Clear
+              </button>
+            </div>
+          </form>
+        </aside>
+
+        {/* Table */}
+        <section>{table}</section>
+      </div>
     </div>
   );
 
@@ -585,7 +812,6 @@ export default function RoutesList() {
     let url: string | null = `${USERS_BASE}/`;
     while (url) {
       try {
-        // Allow absolute "next" URL or relative
         const r = await api.get(url);
         const page = (Array.isArray(r.data)
           ? { results: r.data, next: null }
@@ -596,12 +822,44 @@ export default function RoutesList() {
           byId[u.id] = u;
           if (u.username) byUsername[u.username] = u;
         }
+        // absolute or relative next
         url = page.next || null;
       } catch {
         break;
       }
     }
     return { byId, byUsername };
+  }
+
+  // Localisation typeahead: try multiple server params; fall back to empty
+  async function searchLocalisations(term: string): Promise<Localisation[]> {
+    const tryOnce = async (params: Record<string, any>) => {
+      try {
+        const r = await api.get(LOCALISATIONS_BASE, { params });
+        const arr: Localisation[] = Array.isArray(r.data) ? r.data : r.data.results || [];
+        return arr;
+      } catch {
+        return [];
+      }
+    };
+    // Try common patterns one by one
+    let out = await tryOnce({ q: term });
+    if (out.length) return out;
+    out = await tryOnce({ name__icontains: term });
+    if (out.length) return out;
+    out = await tryOnce({ search: term });
+    return out;
+  }
+
+  function pickBestId(typed: string, opts: Localisation[]): number | undefined {
+    const t = typed.trim();
+    if (!t) return undefined;
+    const exact = opts.find((o) => o.name.toLowerCase() === t.toLowerCase());
+    if (exact) return exact.id;
+    const starts = opts.find((o) => o.name.toLowerCase().startsWith(t.toLowerCase()));
+    if (starts) return starts.id;
+    const any = opts[0];
+    return any?.id;
   }
 }
 
@@ -659,3 +917,19 @@ const td: React.CSSProperties = { padding: "10px 8px", verticalAlign: "middle", 
 const tdMono: React.CSSProperties = { ...td, fontVariantNumeric: "tabular-nums" };
 const tdCenter: React.CSSProperties = { ...td, textAlign: "center" };
 const subline: React.CSSProperties = { fontSize: 12, opacity: 0.7, marginTop: 2 };
+
+const lbl: React.CSSProperties = { display: "grid", gap: 6, fontSize: 12, fontWeight: 600 };
+const inp: React.CSSProperties = {
+  padding: "8px 10px",
+  border: "1px solid #ddd",
+  borderRadius: 8,
+  fontSize: 14,
+};
+const btn: React.CSSProperties = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "1px solid #ddd",
+  background: "#fff",
+  cursor: "pointer",
+  fontSize: 14,
+};

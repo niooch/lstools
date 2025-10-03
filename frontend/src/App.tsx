@@ -1,6 +1,7 @@
 // src/App.tsx
 import { useState } from "react";
 import { Routes, Route, NavLink, Navigate, useParams, Link } from "react-router-dom";
+import LangSwitch from "./components/LanguageSwitcher";
 
 // pages
 import RouteDetails from "./pages/RouteDetails";
@@ -177,6 +178,8 @@ export default function App() {
             zIndex: 10,
           }}
         >
+            <LangSwitch />
+
           {token ? (
             <button
               onClick={logout}

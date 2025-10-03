@@ -217,8 +217,6 @@ class RouteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="mine")
     def mine(self, request):
         qs = Route.objects.select_related("origin", "destination", "vehicle_type", "owner").filter(owner=request.user)
-        if "status" not in request.query_params and "active" not in request.query_params:
-            qs = qs.filter(status=RouteStatus.ACTIVE)
         qs = self.filter_queryset(qs)
         page = self.paginate_queryset(qs)
         if page is not None:

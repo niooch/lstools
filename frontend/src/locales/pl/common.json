@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "routes": "Trasy",
+    "myRoutes": "Moje trasy",
+    "chat": "Czat",
+    "users": "Użytkownicy",
+    "verify": "Weryfikacja",
+    "profile": "Profil",
+    "logout": "Wyloguj",
+    "login": "Zaloguj",
+    "register": "Rejestracja"
+  },
+  "actions": {
+    "save": "Zapisz",
+    "reset": "Resetuj",
+    "create": "Utwórz",
+    "apply": "Zastosuj",
+    "details": "Szczegóły",
+    "sold": "Oznacz jako sprzedaną",
+    "back": "Wstecz"
+  },
+  "auth": {
+    "createAccount": "Utwórz konto",
+    "haveAccount": "Masz już konto?",
+    "loginHere": "Zaloguj się",
+    "username": "Nazwa użytkownika",
+    "email": "E-mail",
+    "password": "Hasło",
+    "confirmPassword": "Potwierdź hasło",
+    "registrationOk": "Rejestracja zakończona. Możesz się zalogować.",
+    "registrationFail": "Rejestracja nie powiodła się. Spróbuj ponownie."
+  },
+  "chat": {
+    "title": "Czat społeczności",
+    "loading": "Wczytywanie…",
+    "noMessages": "Brak wiadomości.",
+    "send": "Wyślij",
+    "tip": "Wskazówka: Enter wysyła (Shift+Enter – nowa linia). Możesz też wysłać sam obraz.",
+    "refresh": "Odśwież",
+    "popout": "W nowym oknie",
+    "jumpToNewest": "Skocz do najnowszych"
+  },
+  "routes": {
+    "title": "Trasy",
+    "table": {
+      "distance": "Dyst.",
+      "origin": "Początek",
+      "destination": "Cel",
+      "length": "Długość (km)",
+      "crew": "Załoga",
+      "vehicle": "Pojazd",
+      "user": "Użytkownik",
+      "price": "Cena",
+      "more": "Więcej"
+    },
+    "startAt": "Start",
+    "endAt": "Koniec",
+    "duration": "Czas trwania",
+    "ppk": "cena/km",
+    "noResults": "Brak wyników."
+  },
+  "profile": {
+    "editTitle": "Edytuj profil",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "phone": "Telefon",
+    "about": "O mnie",
+    "emailVerified": "E-mail zweryfikowany",
+    "emailNotVerified": "E-mail niezweryfikowany",
+    "updated": "Zaktualizowano profil!",
+    "failed": "Nie udało się zapisać."
+  },
+  "lang": {
+    "pl": "Polski",
+    "en": "Angielski",
+    "choose": "Język"
+  }
+}
+

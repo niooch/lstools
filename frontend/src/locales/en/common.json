@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "routes": "Routes",
+    "myRoutes": "My routes",
+    "chat": "Chat",
+    "users": "Users",
+    "verify": "Verification",
+    "profile": "Profile",
+    "logout": "Log out",
+    "login": "Log in",
+    "register": "Register"
+  },
+  "actions": {
+    "save": "Save",
+    "reset": "Reset",
+    "create": "Create",
+    "apply": "Apply",
+    "details": "Details",
+    "sold": "Mark as sold",
+    "back": "Back"
+  },
+  "auth": {
+    "createAccount": "Create account",
+    "haveAccount": "Already have an account?",
+    "loginHere": "Log in",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "registrationOk": "Registration successful. You can now log in.",
+    "registrationFail": "Registration failed. Try again."
+  },
+  "chat": {
+    "title": "Community chat",
+    "loading": "Loading…",
+    "noMessages": "No messages yet.",
+    "send": "Send",
+    "tip": "Tip: press Enter to send (Shift+Enter for a new line). You can also send an image-only message.",
+    "refresh": "Refresh",
+    "popout": "Pop out",
+    "jumpToNewest": "Jump to newest"
+  },
+  "routes": {
+    "title": "Routes",
+    "table": {
+      "distance": "Dist",
+      "origin": "Origin",
+      "destination": "Destination",
+      "length": "Length (km)",
+      "crew": "Crew",
+      "vehicle": "Vehicle",
+      "user": "User",
+      "price": "Price",
+      "more": "More"
+    },
+    "startAt": "Start",
+    "endAt": "Finish",
+    "duration": "Duration",
+    "ppk": "price/km",
+    "noResults": "No routes found."
+  },
+  "profile": {
+    "editTitle": "Edit profile",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone number",
+    "about": "About me",
+    "emailVerified": "Email verified",
+    "emailNotVerified": "Email not verified",
+    "updated": "Profile updated!",
+    "failed": "Save failed."
+  },
+  "lang": {
+    "pl": "Polish",
+    "en": "English",
+    "choose": "Language"
+  }
+}
+
