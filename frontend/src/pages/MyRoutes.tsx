@@ -1,3 +1,4 @@
+// /src/pages/MyRoutes.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -224,7 +225,8 @@ export default function MyRoutes() {
 
     return (
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", borderSpacing: 0, minWidth: 980 }}>
+        {/* widened a bit to fit the new "More" column */}
+        <table style={{ width: "100%", borderCollapse: "collapse", borderSpacing: 0, minWidth: 1040 }}>
           <thead>
             <tr style={{ textAlign: "left" }}>
               <th style={th}>{t("table.headers.origin")}</th>
@@ -235,6 +237,8 @@ export default function MyRoutes() {
               <th style={th}>{t("table.headers.vehicle")}</th>
               <th style={th}>{t("table.headers.user")}</th>
               <th style={th}>{t("table.headers.price")}</th>
+              {/* new: More column header to match RoutesList */}
+              <th style={{ textAlign: "right", whiteSpace: "nowrap" }}>{t("routesList.table.more")}</th>
             </tr>
           </thead>
           <tbody>
@@ -358,6 +362,26 @@ export default function MyRoutes() {
                       <div>{priceLabel}</div>
                       <div style={subline}>{ppkLabel}</div>
                     </div>
+                  </td>
+
+                  {/* new: Details button, matching RoutesList */}
+                  <td style={{ textAlign: "right" }}>
+                    <Link
+                      to={`/routes/${r.id}`}
+                      style={{
+                        display: "inline-block",
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb",
+                        background: "#fff",
+                        textDecoration: "none",
+                        color: "#111",
+                        fontSize: 13,
+                      }}
+                      title={t("routesList.detailsTitle")}
+                    >
+                      {t("routesList.details")}
+                    </Link>
                   </td>
                 </tr>
               );
@@ -512,5 +536,5 @@ const th: React.CSSProperties = {
 };
 const td: React.CSSProperties = { padding: "10px 8px", verticalAlign: "middle", whiteSpace: "nowrap" };
 const tdMono: React.CSSProperties = { ...td, fontVariantNumeric: "tabular-nums" };
-const tdCenter: React.CSS_PROPERTIES = { ...td, textAlign: "center" };
+const tdCenter: React.CSSProperties = { ...td, textAlign: "center" }; // fixed type
 const subline: React.CSSProperties = { fontSize: 12, opacity: 0.7, marginTop: 2 };

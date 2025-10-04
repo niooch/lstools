@@ -89,17 +89,6 @@
         "noActiveRoutes": "Brak aktywnych tras."
     },
     "routes": {
-        "vehicle": "pojazd",
-        "crew": "załoga",
-        "length": "długość",
-        "price": "cena",
-        "ppk": "cena/km",
-        "backToList": "Powrót do listy tras",
-        "status": {
-            "active": "aktywna",
-            "sold": "sprzedana",
-            "cancelled": "anulowana"
-        }
     },
     "common": {
         "loading": "Ładowanie…",
@@ -166,6 +155,18 @@
         "loading": "Ładowanie…"
     },
     "routes": {
+        "vehicle": "pojazd",
+        "crew": "załoga",
+        "length": "długość",
+        "price": "cena",
+        "ppk": "cena/km",
+        "backToList": "Powrót do listy tras",
+        "status": {
+            "active": "aktywna",
+            "sold": "sprzedana",
+            "cancelled": "anulowana"
+        },
+
         "details": {
             "title": "Trasa #{{id}}",
             "route_map": "Mapa trasy",

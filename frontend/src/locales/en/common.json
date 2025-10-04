@@ -90,26 +90,6 @@
             "noActiveRoutes": "No active routes."
         },
         "routes": {
-            "vehicle": "vehicle",
-            "crew": "crew",
-            "length": "length",
-            "price": "price",
-            "ppk": "ppk",
-            "backToList": "Back to routes",
-            "status": {
-                "active": "active",
-                "sold": "sold",
-                "cancelled": "cancelled"
-            }
-        },
-        "common": {
-            "loading": "Loading…",
-            "back": "Back",
-            "save": "Save",
-            "saving": "Saving…",
-            "saveChanges": "Save changes",
-            "reset": "Reset",
-            "characters": "characters"
         },
         "profileEdit": {
             "title": "Edit profile",
@@ -164,9 +144,19 @@
             "network_error": "Network error. Try again."
         },
         "common": {
-            "loading": "Loading…"
         },
         "routes": {
+            "crew": "crew",
+            "vehicle": "vehicle",
+            "length": "length",
+            "price": "price",
+            "ppk": "ppk",
+            "backToList": "Back to routes",
+            "status": {
+                "active": "active",
+                "sold": "sold",
+                "cancelled": "cancelled"
+            },
             "details": {
                 "title": "Route #{{id}}",
                 "route_map": "Route map",
@@ -207,8 +197,17 @@
             }
         },
         "common": {
+            "back": "Back",
+            "save": "Save",
+            "saving": "Saving…",
+            "saveChanges": "Save changes",
+            "reset": "Reset",
+            "characters": "characters",
+            "loading": "Loading...",
             "cancel": "Cancel",
-            "clickToFill": "Click to fill"
+            "clickToFill": "Click to fill",
+            "email": "Email",
+            "phone": "Phone"
         },
         "routeNew": {
             "title": "Add a new route",

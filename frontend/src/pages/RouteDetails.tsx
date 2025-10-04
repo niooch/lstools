@@ -446,7 +446,15 @@ export default function RouteDetails() {
 }
 
 /* ---------------------- Map (Leaflet) ---------------------- */
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polyline,
+  Popup,
+  useMap,
+  AttributionControl,   // <-- added
+} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTranslation as useTranslationMap } from "react-i18next";
@@ -510,9 +518,18 @@ function RouteMap({
 
   return (
     <div style={{ height: 280, borderRadius: 10, overflow: "hidden" }}>
-      <MapContainer center={center} zoom={6} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
+      {/* Disable default attribution control and add our own without a prefix (no flag/emoji). */}
+      <MapContainer
+        center={center}
+        zoom={6}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={false}
+        attributionControl={false}                 // <-- disable default
+      >
+        <AttributionControl position="bottomright" prefix="" /> {/* <-- custom, no prefix */}
+
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
