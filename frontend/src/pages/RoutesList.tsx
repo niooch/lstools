@@ -1,6 +1,8 @@
+// src/pages/RoutesList.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { useTranslation } from "react-i18next";
 import crewSingle from "../assets/crew-single.png";
 import crewDouble from "../assets/crew-double.png";
 
@@ -177,6 +179,7 @@ function getOwnerIdAndLabel(
 
 /* ---------------- component ---------------- */
 export default function RoutesList() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<RouteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -272,7 +275,7 @@ export default function RoutesList() {
         if (Object.keys(byUsername).length) setUserByUsername((prev) => ({ ...byUsername, ...prev, ...byUsername }));
       }
     } catch (e: any) {
-      setErr(e?.response?.data?.detail || "Failed to load routes.");
+      setErr(e?.response?.data?.detail || t("routesList.state.error"));
     } finally {
       setLoading(false);
     }
@@ -310,21 +313,21 @@ export default function RoutesList() {
 
   // ---------- typeahead search for localisations ----------
   useEffect(() => {
-    const t = setTimeout(() => {
+    const tmr = setTimeout(() => {
       void (async () => {
         setOriginOpts(filters.originName.trim() ? await searchLocalisations(filters.originName.trim()) : []);
       })();
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tmr);
   }, [filters.originName]);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const tmr = setTimeout(() => {
       void (async () => {
         setDestOpts(filters.destName.trim() ? await searchLocalisations(filters.destName.trim()) : []);
       })();
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tmr);
   }, [filters.destName]);
 
   // ---------- sidebar actions ----------
@@ -411,16 +414,16 @@ export default function RoutesList() {
 
     switch (filters.sort) {
       case "price_asc":
-        arr.sort((a, b) => (getPriceNum(a) - getPriceNum(b)));
+        arr.sort((a, b) => getPriceNum(a) - getPriceNum(b));
         break;
       case "price_desc":
-        arr.sort((a, b) => (getPriceNum(b) - getPriceNum(a)));
+        arr.sort((a, b) => getPriceNum(b) - getPriceNum(a));
         break;
       case "ppk_asc":
-        arr.sort((a, b) => (getPPK(a) - getPPK(b)));
+        arr.sort((a, b) => getPPK(a) - getPPK(b));
         break;
       case "ppk_desc":
-        arr.sort((a, b) => (getPPK(b) - getPPK(a)));
+        arr.sort((a, b) => getPPK(b) - getPPK(a));
         break;
       default:
         break;
@@ -430,25 +433,25 @@ export default function RoutesList() {
 
   // ---------- table ----------
   const table = useMemo(() => {
-    if (loading) return <div>Loading…</div>;
+    if (loading) return <div>{t("routesList.state.loading")}</div>;
     if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-    if (displayedRows.length === 0) return <div>No routes found.</div>;
+    if (displayedRows.length === 0) return <div>{t("routesList.state.empty")}</div>;
 
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", borderSpacing: 0, minWidth: 1040 }}>
           <thead>
             <tr style={{ textAlign: "left" }}>
-              <th style={th}>Dist</th>
-              <th style={th}>Origin</th>
+              <th style={th}>{t("routesList.table.dist")}</th>
+              <th style={th}>{t("routesList.table.origin")}</th>
               <th style={th}></th>
-              <th style={th}>Destination</th>
-              <th style={th}>Length (km)</th>
-              <th style={th}>Crew</th>
-              <th style={th}>Vehicle</th>
-              <th style={th}>User</th>
-              <th style={th}>Price</th>
-              <th style={{ textAlign: "right", whiteSpace: "nowrap" }}>More</th>
+              <th style={th}>{t("routesList.table.destination")}</th>
+              <th style={th}>{t("routesList.table.lengthKm")}</th>
+              <th style={th}>{t("routesList.table.crew")}</th>
+              <th style={th}>{t("routesList.table.vehicle")}</th>
+              <th style={th}>{t("routesList.table.user")}</th>
+              <th style={th}>{t("routesList.table.price")}</th>
+              <th style={{ textAlign: "right", whiteSpace: "nowrap" }}>{t("routesList.table.more")}</th>
             </tr>
           </thead>
           <tbody>
@@ -462,7 +465,7 @@ export default function RoutesList() {
 
               const crew = (r.crew || "").toString().toLowerCase();
               const crewIcon = crew === "double" ? crewDouble : crewSingle;
-              const crewAlt = crew === "double" ? "Double crew" : "Single crew";
+              const crewAlt = crew === "double" ? t("routesList.crew.double") : t("routesList.crew.single");
 
               const distKm = distById[r.id];
               const lenNum =
@@ -493,7 +496,7 @@ export default function RoutesList() {
               return (
                 <tr key={r.id} style={{ borderTop: "1px solid #eee" }}>
                   <td style={tdMono}>
-                    {searchPoint ? (distKm == null ? "…" : `${kmFmt(distKm)} km`) : "—"}
+                    {searchPoint ? (distKm == null ? "…" : `${kmFmt(distKm)} ${t("routesList.kmAbbr")}`) : "—"}
                   </td>
 
                   <td style={td}>
@@ -508,7 +511,10 @@ export default function RoutesList() {
                     </div>
                   </td>
 
-                  <td style={{ ...tdCenter, width: 40, opacity: 0.7, fontSize: 18 }} title="Route">
+                  <td
+                    style={{ ...tdCenter, width: 40, opacity: 0.7, fontSize: 18 }}
+                    title={t("routesList.table.routeArrowTitle")}
+                  >
                     {ARROW}
                   </td>
 
@@ -538,7 +544,7 @@ export default function RoutesList() {
                   <td style={td}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {vehAttr ? (
-                        <AttrBadge title={`Attribute: ${vehAttr.toUpperCase()}`}>
+                        <AttrBadge title={t("routesList.vehicle.attribute", { attr: (vehAttr[0] || "").toUpperCase() })}>
                           {vehAttr[0].toUpperCase()}
                         </AttrBadge>
                       ) : null}
@@ -550,7 +556,7 @@ export default function RoutesList() {
                     {ownerId ? (
                       <Link
                         to={`/users/${ownerId}`}
-                        title="Open profile"
+                        title={t("routesList.openProfile")}
                         style={{ color: "#0a58ca", textDecoration: "underline" }}
                       >
                         {ownerLabel}
@@ -580,9 +586,9 @@ export default function RoutesList() {
                         color: "#111",
                         fontSize: 13,
                       }}
-                      title="Open route details"
+                      title={t("routesList.detailsTitle")}
                     >
-                      Details →
+                      {t("routesList.details")}
                     </Link>
                   </td>
                 </tr>
@@ -592,12 +598,12 @@ export default function RoutesList() {
         </table>
       </div>
     );
-  }, [displayedRows, err, loading, distById, searchPoint, locById, userById, userByUsername, vehById]);
+  }, [displayedRows, err, loading, distById, searchPoint, locById, userById, userByUsername, vehById, t]);
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <h2 style={{ margin: 0 }}>Routes</h2>
+        <h2 style={{ margin: 0 }}>{t("routesList.title")}</h2>
       </div>
 
       <div
@@ -620,15 +626,15 @@ export default function RoutesList() {
           }}
         >
           <form onSubmit={onApplyFilters} style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>Filter & sort</div>
+            <div style={{ fontWeight: 700 }}>{t("routesList.filters.header")}</div>
 
             <label style={lbl}>
-              <span>Origin (name)</span>
+              <span>{t("routesList.filters.originName")}</span>
               <input
                 list="origin-list"
                 value={filters.originName}
                 onChange={(e) => setFilters((p) => ({ ...p, originName: e.target.value }))}
-                placeholder="e.g. WRO1"
+                placeholder={t("routesList.filters.originPlaceholder")}
                 style={inp}
               />
               <datalist id="origin-list">
@@ -639,12 +645,12 @@ export default function RoutesList() {
             </label>
 
             <label style={lbl}>
-              <span>Destination (name)</span>
+              <span>{t("routesList.filters.destinationName")}</span>
               <input
                 list="dest-list"
                 value={filters.destName}
                 onChange={(e) => setFilters((p) => ({ ...p, destName: e.target.value }))}
-                placeholder="e.g. SZZ1"
+                placeholder={t("routesList.filters.destinationPlaceholder")}
                 style={inp}
               />
               <datalist id="dest-list">
@@ -655,7 +661,7 @@ export default function RoutesList() {
             </label>
 
             <label style={lbl}>
-              <span>Start from</span>
+              <span>{t("routesList.filters.startFrom")}</span>
               <input
                 type="datetime-local"
                 value={filters.startFrom}
@@ -665,7 +671,7 @@ export default function RoutesList() {
             </label>
 
             <label style={lbl}>
-              <span>End until</span>
+              <span>{t("routesList.filters.endUntil")}</span>
               <input
                 type="datetime-local"
                 value={filters.endUntil}
@@ -675,41 +681,41 @@ export default function RoutesList() {
             </label>
 
             <label style={lbl}>
-              <span>Crew</span>
+              <span>{t("routesList.filters.crew")}</span>
               <select
                 value={filters.crew}
                 onChange={(e) => setFilters((p) => ({ ...p, crew: e.target.value as any }))}
                 style={inp}
               >
-                <option value="any">Any</option>
-                <option value="single">Single</option>
-                <option value="double">Double</option>
+                <option value="any">{t("routesList.filters.crewAny")}</option>
+                <option value="single">{t("routesList.filters.crewSingle")}</option>
+                <option value="double">{t("routesList.filters.crewDouble")}</option>
               </select>
             </label>
 
             <label style={lbl}>
-              <span>Sort</span>
+              <span>{t("routesList.filters.sort")}</span>
               <select
                 value={filters.sort}
                 onChange={(e) => setFilters((p) => ({ ...p, sort: e.target.value as any }))}
                 style={inp}
               >
-                <option value="none">—</option>
-                <option value="price_asc">Price ↑</option>
-                <option value="price_desc">Price ↓</option>
-                <option value="ppk_asc">Price/km ↑</option>
-                <option value="ppk_desc">Price/km ↓</option>
+                <option value="none">{t("routesList.filters.sortNone")}</option>
+                <option value="price_asc">{t("routesList.filters.sortPriceAsc")}</option>
+                <option value="price_desc">{t("routesList.filters.sortPriceDesc")}</option>
+                <option value="ppk_asc">{t("routesList.filters.sortPPKAsc")}</option>
+                <option value="ppk_desc">{t("routesList.filters.sortPPKDesc")}</option>
               </select>
             </label>
 
             <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
 
-            <div style={{ fontWeight: 700 }}>Near address (optional)</div>
+            <div style={{ fontWeight: 700 }}>{t("routesList.filters.nearHeader")}</div>
             <label style={lbl}>
-              <span>Search near</span>
+              <span>{t("routesList.filters.searchNear")}</span>
               <input
                 type="text"
-                placeholder="City or address"
+                placeholder={t("routesList.filters.searchNearPlaceholder")}
                 value={qNear}
                 onChange={(e) => setQNear(e.target.value)}
                 style={inp}
@@ -717,7 +723,7 @@ export default function RoutesList() {
             </label>
 
             <label style={lbl}>
-              <span>Radius</span>
+              <span>{t("routesList.filters.radius")}</span>
               <select
                 value={radiusKm}
                 onChange={(e) => setRadiusKm(parseInt(e.target.value))}
@@ -725,7 +731,7 @@ export default function RoutesList() {
               >
                 {[50, 80, 120, 200, 300].map((k) => (
                   <option key={k} value={k}>
-                    {k} km
+                    {k} {t("routesList.kmAbbr")}
                   </option>
                 ))}
               </select>
@@ -733,16 +739,16 @@ export default function RoutesList() {
 
             {searchPoint && (
               <div style={{ fontSize: 12, opacity: 0.8 }}>
-                Using: <em>{searchLabel}</em>
+                {t("routesList.filters.using")} <em>{searchLabel}</em>
               </div>
             )}
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="submit" style={btn}>
-                Apply
+                {t("routesList.filters.apply")}
               </button>
               <button type="button" onClick={onClearFilters} style={{ ...btn, background: "#f9fafb" }}>
-                Clear
+                {t("routesList.filters.clear")}
               </button>
             </div>
           </form>
@@ -917,7 +923,6 @@ const td: React.CSSProperties = { padding: "10px 8px", verticalAlign: "middle", 
 const tdMono: React.CSSProperties = { ...td, fontVariantNumeric: "tabular-nums" };
 const tdCenter: React.CSSProperties = { ...td, textAlign: "center" };
 const subline: React.CSSProperties = { fontSize: 12, opacity: 0.7, marginTop: 2 };
-
 const lbl: React.CSSProperties = { display: "grid", gap: 6, fontSize: 12, fontWeight: 600 };
 const inp: React.CSSProperties = {
   padding: "8px 10px",

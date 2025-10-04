@@ -1,79 +1,371 @@
 {
-  "nav": {
-    "routes": "Trasy",
-    "myRoutes": "Moje trasy",
-    "chat": "Czat",
-    "users": "Użytkownicy",
-    "verify": "Weryfikacja",
-    "profile": "Profil",
-    "logout": "Wyloguj",
-    "login": "Zaloguj",
-    "register": "Rejestracja"
-  },
-  "actions": {
-    "save": "Zapisz",
-    "reset": "Resetuj",
-    "create": "Utwórz",
-    "apply": "Zastosuj",
-    "details": "Szczegóły",
-    "sold": "Oznacz jako sprzedaną",
-    "back": "Wstecz"
-  },
-  "auth": {
-    "createAccount": "Utwórz konto",
-    "haveAccount": "Masz już konto?",
-    "loginHere": "Zaloguj się",
-    "username": "Nazwa użytkownika",
-    "email": "E-mail",
-    "password": "Hasło",
-    "confirmPassword": "Potwierdź hasło",
-    "registrationOk": "Rejestracja zakończona. Możesz się zalogować.",
-    "registrationFail": "Rejestracja nie powiodła się. Spróbuj ponownie."
-  },
-  "chat": {
-    "title": "Czat społeczności",
-    "loading": "Wczytywanie…",
-    "noMessages": "Brak wiadomości.",
-    "send": "Wyślij",
-    "tip": "Wskazówka: Enter wysyła (Shift+Enter – nowa linia). Możesz też wysłać sam obraz.",
-    "refresh": "Odśwież",
-    "popout": "W nowym oknie",
-    "jumpToNewest": "Skocz do najnowszych"
-  },
-  "routes": {
-    "title": "Trasy",
-    "table": {
-      "distance": "Dyst.",
-      "origin": "Początek",
-      "destination": "Cel",
-      "length": "Długość (km)",
-      "crew": "Załoga",
-      "vehicle": "Pojazd",
-      "user": "Użytkownik",
-      "price": "Cena",
-      "more": "Więcej"
+    "brand": {
+        "name": "Transports",
+        "logoAlt": "Logo"
     },
-    "startAt": "Start",
-    "endAt": "Koniec",
-    "duration": "Czas trwania",
-    "ppk": "cena/km",
-    "noResults": "Brak wyników."
-  },
-  "profile": {
-    "editTitle": "Edytuj profil",
-    "firstName": "Imię",
-    "lastName": "Nazwisko",
-    "phone": "Telefon",
-    "about": "O mnie",
-    "emailVerified": "E-mail zweryfikowany",
-    "emailNotVerified": "E-mail niezweryfikowany",
-    "updated": "Zaktualizowano profil!",
-    "failed": "Nie udało się zapisać."
-  },
-  "lang": {
-    "pl": "Polski",
-    "en": "Angielski",
-    "choose": "Język"
-  }
+    "nav": {
+        "routes": "Trasy",
+        "addRoute": "Dodaj trasę",
+        "myRoutes": "Moje trasy",
+        "chat": "Czat",
+        "verification": "Weryfikacja",
+        "login": "Logowanie",
+        "register": "Rejestracja",
+        "editProfile": "Edytuj profil"
+    },
+    "top": {
+        "toggleMenu": "Pokaż/ukryj menu",
+        "logout": "Wyloguj",
+        "logoutTitle": "Wyloguj"
+    },
+    "footer": {
+        "version": "{{version}} · {{year}}"
+    },
+    "common": {
+        "notFound": "404 Nie znaleziono"
+    },
+    "lang": {
+        "choose": "Wybierz język"
+    },
+    "chat": {
+        "title": "Czat społeczności",
+        "refresh": "Odśwież",
+        "popOut": "W nowym oknie",
+        "loadFailed": "Nie udało się załadować czatu.",
+        "sendFailed": "Nie udało się wysłać wiadomości.",
+        "loading": "Wczytywanie…",
+        "empty": "Brak wiadomości.",
+        "scrollToNewest": "Przewiń do najnowszych",
+        "jumpToNewest": "Do najnowszych",
+        "placeholder": "Napisz wiadomość…",
+        "sending": "Wysyłanie…",
+        "send": "Wyślij",
+        "openProfile": "Otwórz profil użytkownika {{name}}",
+        "attachmentAlt": "załącznik na czacie",
+        "tip": "Wskazówka: naciśnij Enter, aby wysłać (użyj Shift+Enter, aby dodać nową linię). Możesz też wysłać sam obraz."
+    },
+    "page": {
+        "myRoutes": {
+            "title": "Moje trasy",
+            "refresh": "Odśwież"
+        }
+    },
+    "state": {
+        "loading": "Ładowanie…",
+        "errorMine": "Nie udało się wczytać Twoich tras.",
+        "emptyMine": "Nie dodałeś jeszcze żadnych tras."
+    },
+    "table": {
+        "headers": {
+            "origin": "Początek",
+            "destination": "Cel",
+            "lengthKm": "Długość ({{unit}})",
+            "crew": "Załoga",
+            "vehicle": "Pojazd",
+            "user": "Użytkownik",
+            "price": "Cena"
+        },
+        "routeArrowTitle": "Trasa",
+        "alt": {
+            "singleCrew": "Załoga jednoosobowa",
+            "doubleCrew": "Załoga dwuosobowa"
+        },
+        "attrBadgeTitle": "Atrybut: {{attr}}",
+        "openProfile": "Zobacz profil"
+    },
+    "unit": {
+        "kmShort": "km"
+    },
+    "common": {
+        "loading": "Ładowanie…",
+        "email": "E-mail",
+        "phone": "Telefon",
+        "loadFailedProfile": "Nie udało się wczytać profilu"
+    },
+    "profile": {
+        "noBio": "Brak opisu.",
+        "stats": "Trasy · aktywne {{active}} · sprzedane {{sold}} · anulowane {{cancelled}} · razem {{total}}",
+        "activeRoutes": "Aktywne trasy",
+        "noActiveRoutes": "Brak aktywnych tras."
+    },
+    "routes": {
+        "vehicle": "pojazd",
+        "crew": "załoga",
+        "length": "długość",
+        "price": "cena",
+        "ppk": "cena/km",
+        "backToList": "Powrót do listy tras",
+        "status": {
+            "active": "aktywna",
+            "sold": "sprzedana",
+            "cancelled": "anulowana"
+        }
+    },
+    "common": {
+        "loading": "Ładowanie…",
+        "back": "Wstecz",
+        "save": "Zapisz",
+        "saving": "Zapisywanie…",
+        "saveChanges": "Zapisz zmiany",
+        "reset": "Resetuj",
+        "characters": "znaki"
+    },
+    "profileEdit": {
+        "title": "Edytuj profil",
+        "loadError": "Nie udało się wczytać profilu.",
+        "saveOk": "Profil zaktualizowany!",
+        "saveError": "Nie udało się zapisać.",
+        "firstName": "Imię",
+        "lastName": "Nazwisko",
+        "email": "E-mail",
+        "phone": "Numer telefonu",
+        "publicProfile": "Profil publiczny",
+        "displayName": "Wyświetlana nazwa",
+        "nicknameColor": "Kolor pseudonimu",
+        "bio": "Bio",
+        "aboutPrivate": "O mnie (pole prywatne konta)",
+        "internalDescHint": "Zapisane pod /api/users/me/update",
+        "placeholder": {
+            "phone": "+48 123 456 789",
+            "displayName": "Jak inni będą Cię widzieć",
+            "bio": "Powiedz innym coś o sobie…",
+            "description": "Wewnętrzny opis Twojego konta"
+        },
+        "emailVerified": "E-mail zweryfikowany",
+        "emailNotVerified": "E-mail niezweryfikowany",
+        "verifiedAt": "Zweryfikowano: {{date}}",
+        "notVerifiedTitle": "Brak weryfikacji"
+    },
+    "auth": {
+        "login_title": "Zaloguj się",
+        "username_or_email": "Nazwa użytkownika lub e-mail",
+        "username_or_email_placeholder": "twoja nazwa lub e-mail",
+        "password": "Hasło",
+        "password_placeholder": "twoje hasło",
+        "sign_in": "Zaloguj się",
+        "login_failed": "Logowanie nie powiodło się",
+        "register_title": "Utwórz konto",
+        "have_account": "Masz już konto?",
+        "login_link": "Zaloguj się",
+        "username": "Nazwa użytkownika",
+        "username_placeholder": "Wybierz nazwę użytkownika",
+        "email": "E-mail",
+        "email_placeholder": "nazwa@przyklad.com",
+        "password": "Hasło",
+        "password_placeholder": "Wpisz hasło",
+        "confirm_password": "Potwierdź hasło",
+        "confirm_password_placeholder": "Powtórz hasło",
+        "create_account": "Utwórz konto",
+        "creating": "Tworzenie…",
+        "fill_required": "Wypełnij wszystkie wymagane pola.",
+        "passwords_mismatch": "Hasła nie są takie same.",
+        "registration_failed": "Rejestracja nie powiodła się. Spróbuj ponownie.",
+        "network_error": "Błąd sieci. Spróbuj ponownie."
+    },
+    "common": {
+        "loading": "Ładowanie…"
+    },
+    "routes": {
+        "details": {
+            "title": "Trasa #{{id}}",
+            "route_map": "Mapa trasy",
+            "localisations": "Lokalizacje",
+            "no_localisations": "Brak lokalizacji.",
+            "origin": "Punkt początkowy",
+            "destination": "Punkt docelowy",
+            "stop_n": "Przystanek {{n}}",
+            "seller": "Sprzedający",
+            "open_profile": "Otwórz profil",
+            "profile_link_unavailable": "(Brak linku do profilu)",
+            "unknown": "Nieznany",
+            "start": "Początek",
+            "end": "Koniec",
+            "no_bio": "Brak opisu.",
+            "email": "E-mail",
+            "phone": "Telefon",
+            "duration": "Czas trwania",
+            "length": "Długość",
+            "vehicle": "Pojazd",
+            "vehicle_attribute": "Atrybut pojazdu",
+            "crew": "Załoga",
+            "price": "Cena",
+            "price_per_km": "Cena / km",
+            "mark_as_sold": "Oznacz jako sprzedaną",
+            "marking": "Oznaczanie…",
+            "confirm_mark_sold": "Oznaczyć tę trasę jako sprzedaną?",
+            "sell_ok": "Trasę oznaczono jako sprzedaną.",
+            "errors": {
+                "load_failed": "Nie udało się wczytać trasy.",
+                "sell_failed": "Nie udało się oznaczyć jako sprzedaną."
+            },
+            "status": {
+                "active": "AKTYWNA",
+                "sold": "SPRZEDANA",
+                "cancelled": "ANULOWANA"
+            }
+        }
+    },
+    "common": {
+        "cancel": "Anuluj",
+        "clickToFill": "Kliknij, aby wypełnić"
+    },
+    "routeNew": {
+        "title": "Dodaj nową trasę",
+        "loading": "Ładowanie słowników…",
+        "knownCodes": "Dostępne lokalizacje:",
+        "andMore": "…(+{{count}} więcej)",
+        "timeFormat": "hh:mm DD/MM/YYYY",
+
+        "fields": {
+            "origin": "Punkt startowy (kod lokalizacji)",
+            "stops": "Przystanki (opcjonalnie, maks. {{max}})",
+            "destination": "Cel (kod lokalizacji)",
+            "timeStart": "Czas rozpoczęcia ({{format}})",
+            "timeEnd": "Czas zakończenia ({{format}})",
+            "vehicleType": "Typ pojazdu (po nazwie)",
+            "crew": "Obsada",
+            "priceOptional": "Cena (opcjonalnie)",
+            "currency": "Waluta"
+        },
+
+        "placeholders": {
+            "origin": "np. SZZ1",
+            "firstStop": "Dodaj kod przystanku (następny pojawi się automatycznie)",
+            "stop": "Kod przystanku",
+            "destination": "np. WRO1",
+            "vehicle": "np. Van",
+            "price": "np. 1200.00"
+        },
+
+        "examples": {
+            "timeExample": "13:15 21/09/2025"
+        },
+
+        "crew": {
+            "single": "Jednoosobowa",
+            "double": "Dwuosobowa"
+        },
+
+        "actions": {
+            "removeStop": "Usuń przystanek",
+            "create": "Utwórz trasę",
+            "creating": "Tworzenie…"
+        },
+
+        "attributeTitle": "Atrybut: {{attr}}",
+
+        "errors": {
+            "loadDicts": "Nie udało się załadować słowników.",
+            "unknownOrigin": "Nieznana lokalizacja początkowa: \"{{name}}\"",
+            "unknownDestination": "Nieznana lokalizacja docelowa: \"{{name}}\"",
+            "unknownVehicle": "Nieznany typ pojazdu: \"{{name}}\"",
+            "invalidStart": "Nieprawidłowy czas rozpoczęcia (użyj {{format}})",
+            "invalidEnd": "Nieprawidłowy czas zakończenia (użyj {{format}})",
+            "unknownStop": "Nieznana lokalizacja przystanku: \"{{name}}\"",
+            "create": "Nie udało się utworzyć trasy."
+        }
+    },
+    "routesList": {
+        "title": "Trasy",
+        "state": {
+            "loading": "Ładowanie…",
+            "error": "Nie udało się wczytać tras.",
+            "empty": "Brak wyników."
+        },
+        "table": {
+            "dist": "Dyst.",
+            "origin": "Start",
+            "destination": "Cel",
+            "lengthKm": "Długość (km)",
+            "crew": "Załoga",
+            "vehicle": "Pojazd",
+            "user": "Użytkownik",
+            "price": "Cena",
+            "more": "Więcej",
+            "routeArrowTitle": "Trasa"
+        },
+        "details": "Szczegóły →",
+        "detailsTitle": "Otwórz szczegóły trasy",
+        "openProfile": "Otwórz profil",
+        "kmAbbr": "km",
+        "crew": {
+            "single": "Załoga pojedyncza",
+            "double": "Załoga podwójna"
+        },
+        "vehicle": {
+            "attribute": "Atrybut: {{attr}}"
+        },
+        "filters": {
+            "header": "Filtruj i sortuj",
+            "originName": "Punkt startowy (nazwa)",
+            "destinationName": "Punkt docelowy (nazwa)",
+            "originPlaceholder": "np. WRO1",
+            "destinationPlaceholder": "np. SZZ1",
+            "startFrom": "Start nie wcześniej niż",
+            "endUntil": "Koniec nie później niż",
+            "crew": "Załoga",
+            "crewAny": "Dowolna",
+            "crewSingle": "Pojedyncza",
+            "crewDouble": "Podwójna",
+            "sort": "Sortuj",
+            "sortNone": "—",
+            "sortPriceAsc": "Cena ↑",
+            "sortPriceDesc": "Cena ↓",
+            "sortPPKAsc": "Cena/km ↑",
+            "sortPPKDesc": "Cena/km ↓",
+            "nearHeader": "W pobliżu adresu (opcjonalnie)",
+            "searchNear": "Szukaj w pobliżu",
+            "searchNearPlaceholder": "Miasto lub adres",
+            "radius": "Promień",
+            "using": "Użyto:",
+            "apply": "Zastosuj",
+            "clear": "Wyczyść"
+        }
+    },
+    "verify": {
+        "title": "Weryfikacja dokumentów",
+        "upload": {
+            "title": "Prześlij dokument",
+            "type": "Rodzaj",
+            "option": {
+                "company": "Firma",
+                "id": "Dowód / Paszport",
+                "license": "Licencja",
+                "other": "Inne"
+            },
+            "button": "Prześlij",
+            "buttonUploading": "Przesyłanie…",
+            "chooseFileError": "Wybierz plik.",
+            "failed": "Nie udało się przesłać."
+        },
+        "list": {
+            "title": "Moje dokumenty"
+        },
+        "loading": "Ładowanie…",
+        "error": "Nie udało się wczytać dokumentów.",
+        "empty": "Brak dokumentów.",
+        "item": {
+            "uploadedAt": "przesłano {{when}}",
+            "reviewedAt": "sprawdzono {{when}}"
+        },
+        "actions": {
+            "open": "Otwórz",
+            "delete": "Usuń"
+        },
+        "delete": {
+            "onlyPending": "Tylko oczekujące dokumenty można usuwać.",
+            "confirm": "Usunąć ten dokument?",
+            "failed": "Nie udało się usunąć."
+        },
+        "adminNote": {
+            "title": "Notatka administratora"
+        },
+        "status": {
+            "pending": "OCZEKUJE",
+            "approved": "ZATWIERDZONO",
+            "rejected": "ODRZUCONO",
+            "unknown": "NIEZNANY"
+        }
+    }
 }
 

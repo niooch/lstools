@@ -1,7 +1,7 @@
-// src/pages/RouteNew.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { useTranslation } from "react-i18next";
 
 type Localisation = {
   id: number;
@@ -28,6 +28,7 @@ const MAX_STOPS = 5;
 
 export default function RouteNew() {
   const nav = useNavigate();
+  const { t } = useTranslation();
 
   const [locs, setLocs] = useState<Localisation[]>([]);
   const [vehTypes, setVehTypes] = useState<VehicleType[]>([]);
@@ -82,14 +83,14 @@ export default function RouteNew() {
         setVehTypes(vehAll);
       } catch (e: any) {
         if (!on) return;
-        setErr(e?.response?.data?.detail || "Failed to load dictionaries.");
+        setErr(e?.response?.data?.detail || t("routeNew.errors.loadDicts"));
       } finally {
         if (on) setLoading(false);
       }
     }
     loadAll();
     return () => { on = false; };
-  }, []);
+  }, [t]);
 
   // dynamic stops: ensure a trailing empty input until we hit MAX
   useEffect(() => {
@@ -130,14 +131,15 @@ export default function RouteNew() {
       const destId = locByName[destName.trim().toLowerCase()]?.id;
       const vehId = vehByName[vehName.trim().toLowerCase()]?.id;
 
-      if (!originId) throw new Error(`Unknown origin: "${originName}"`);
-      if (!destId) throw new Error(`Unknown destination: "${destName}"`);
-      if (!vehId) throw new Error(`Unknown vehicle type: "${vehName}"`);
+      if (!originId) throw new Error(t("routeNew.errors.unknownOrigin", { name: originName }));
+      if (!destId) throw new Error(t("routeNew.errors.unknownDestination", { name: destName }));
+      if (!vehId) throw new Error(t("routeNew.errors.unknownVehicle", { name: vehName }));
 
+      const format = t("routeNew.timeFormat");
       const startISO = parseUserDateTime(timeStartStr);
       const endISO = parseUserDateTime(timeEndStr);
-      if (!startISO) throw new Error(`Invalid start time (use hh:mm DD/MM/YYYY)`);
-      if (!endISO) throw new Error(`Invalid end time (use hh:mm DD/MM/YYYY)`);
+      if (!startISO) throw new Error(t("routeNew.errors.invalidStart", { format }));
+      if (!endISO) throw new Error(t("routeNew.errors.invalidEnd", { format }));
 
       // stops: keep only non-empty and map
       const stopIds: number[] = stopNames
@@ -146,7 +148,7 @@ export default function RouteNew() {
         .slice(0, MAX_STOPS)
         .map((name) => {
           const id = locByName[name.toLowerCase()]?.id;
-          if (!id) throw new Error(`Unknown stop localisation: "${name}"`);
+          if (!id) throw new Error(t("routeNew.errors.unknownStop", { name }));
           return id;
         });
 
@@ -169,7 +171,7 @@ export default function RouteNew() {
       const msg =
         typeof e?.message === "string"
           ? e.message
-          : e?.response?.data?.detail || stringifyErrors(e?.response?.data) || "Failed to create route.";
+          : e?.response?.data?.detail || stringifyErrors(e?.response?.data) || t("routeNew.errors.create");
       setErr(msg);
     } finally {
       setPosting(false);
@@ -183,12 +185,16 @@ export default function RouteNew() {
   const selectedVeh = useMemo(() => vehByName[vehName.trim().toLowerCase()], [vehByName, vehName]);
   const selectedVehLetter = selectedVeh?.attribute?.slice(0, 1)?.toUpperCase() || null;
 
+  const moreCount = Math.max(0, allLocNames.length - 20);
+
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
-      <h2 style={{ margin: "8px 0 16px" }}>Add a new route</h2>
+      <h2 style={{ margin: "8px 0 16px" }}>{t("routeNew.title")}</h2>
 
       {loading ? (
-        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>Loading dictionaries…</div>
+        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
+          {t("routeNew.loading")}
+        </div>
       ) : (
         <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
           {err && (
@@ -199,7 +205,7 @@ export default function RouteNew() {
 
           {/* localisation quick hint list */}
           <div style={{ fontSize: 13, opacity: 0.75 }}>
-            Known localisation codes:{" "}
+            {t("routeNew.knownCodes")}{" "}
             <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
               {allLocNames.slice(0, 20).map((n) => (
                 <button
@@ -224,12 +230,12 @@ export default function RouteNew() {
                     background: "#fafafa",
                     cursor: "pointer",
                   }}
-                  title="Click to fill"
+                  title={t("common.clickToFill")}
                 >
                   {n}
                 </button>
               ))}
-              {allLocNames.length > 20 && <span>…(+{allLocNames.length - 20} more)</span>}
+              {moreCount > 0 && <span>{t("routeNew.andMore", { count: moreCount })}</span>}
             </span>
           </div>
 
@@ -242,10 +248,10 @@ export default function RouteNew() {
 
           {/* origin */}
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>Origin (localisation code)</label>
+            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.origin")}</label>
             <input
               list="loc-options"
-              placeholder="e.g. SZZ1"
+              placeholder={t("routeNew.placeholders.origin")}
               value={originName}
               onChange={(e) => setOriginName(e.target.value)}
               required
@@ -255,13 +261,13 @@ export default function RouteNew() {
 
           {/* stops (dynamic) */}
           <div style={{ display: "grid", gap: 8 }}>
-            <label style={{ fontWeight: 600 }}>Stops (optional, up to {MAX_STOPS})</label>
+            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.stops", { max: MAX_STOPS })}</label>
             <div style={{ display: "grid", gap: 8 }}>
               {stopNames.slice(0, MAX_STOPS).map((name, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input
                     list="loc-options"
-                    placeholder={i === 0 ? "Add a stop code (auto-adds next)" : "Stop code"}
+                    placeholder={i === 0 ? t("routeNew.placeholders.firstStop") : t("routeNew.placeholders.stop")}
                     value={name}
                     onChange={(e) =>
                       setStopNames((prev) => prev.map((s, idx) => (idx === i ? e.target.value : s)))
@@ -273,7 +279,7 @@ export default function RouteNew() {
                       onClick={() => {
                         setStopNames((prev) => prev.filter((_, idx) => idx !== i));
                       }}
-                      title="Remove stop"
+                      title={t("routeNew.actions.removeStop")}
                       style={{
                         border: "1px solid #eee",
                         background: "#fafafa",
@@ -292,10 +298,10 @@ export default function RouteNew() {
 
           {/* destination */}
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>Destination (localisation code)</label>
+            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.destination")}</label>
             <input
               list="loc-options"
-              placeholder="e.g. WRO1"
+              placeholder={t("routeNew.placeholders.destination")}
               value={destName}
               onChange={(e) => setDestName(e.target.value)}
               required
@@ -306,18 +312,22 @@ export default function RouteNew() {
           {/* times */}
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>Time start (hh:mm DD/MM/YYYY)</label>
+              <label style={{ fontWeight: 600 }}>
+                {t("routeNew.fields.timeStart", { format: t("routeNew.timeFormat") })}
+              </label>
               <input
-                placeholder="13:15 21/09/2025"
+                placeholder={t("routeNew.examples.timeExample")}
                 value={timeStartStr}
                 onChange={(e) => setTimeStartStr(e.target.value)}
                 required
               />
             </div>
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>Time end (hh:mm DD/MM/YYYY)</label>
+              <label style={{ fontWeight: 600 }}>
+                {t("routeNew.fields.timeEnd", { format: t("routeNew.timeFormat") })}
+              </label>
               <input
-                placeholder="17:45 21/09/2025"
+                placeholder={t("routeNew.examples.timeExample")}
                 value={timeEndStr}
                 onChange={(e) => setTimeEndStr(e.target.value)}
                 required
@@ -332,18 +342,18 @@ export default function RouteNew() {
             ))}
           </datalist>
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>Vehicle type (by name)</label>
+            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.vehicleType")}</label>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <input
                 list="veh-options"
-                placeholder="e.g. Van"
+                placeholder={t("routeNew.placeholders.vehicle")}
                 value={vehName}
                 onChange={(e) => setVehName(e.target.value)}
                 required
               />
               {selectedVehLetter && (
                 <span
-                  title={`Attribute: ${selectedVehLetter}`}
+                  title={t("routeNew.attributeTitle", { attr: selectedVehLetter })}
                   style={{
                     display: "inline-grid",
                     placeItems: "center",
@@ -364,16 +374,16 @@ export default function RouteNew() {
 
           {/* crew selector with icons */}
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>Crew</label>
+            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.crew")}</label>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <CrewOption
-                label="Single"
+                label={t("routeNew.crew.single")}
                 icon="/icons/crew-single.png"
                 active={crew === "single"}
                 onClick={() => setCrew("single")}
               />
               <CrewOption
-                label="Double"
+                label={t("routeNew.crew.double")}
                 icon="/icons/crew-double.png"
                 active={crew === "double"}
                 onClick={() => setCrew("double")}
@@ -384,18 +394,18 @@ export default function RouteNew() {
           {/* price & currency */}
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>Price (optional)</label>
+              <label style={{ fontWeight: 600 }}>{t("routeNew.fields.priceOptional")}</label>
               <input
                 type="number"
                 inputMode="decimal"
                 step="0.01"
-                placeholder="e.g. 1200.00"
+                placeholder={t("routeNew.placeholders.price")}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
               />
             </div>
             <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>Currency</label>
+              <label style={{ fontWeight: 600 }}>{t("routeNew.fields.currency")}</label>
               <select value={currency} onChange={(e) => setCurrency(e.target.value as any)}>
                 <option value="PLN">PLN</option>
                 <option value="EUR">EUR</option>
@@ -405,14 +415,14 @@ export default function RouteNew() {
 
           <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
             <button type="submit" disabled={posting} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #ddd" }}>
-              {posting ? "Creating…" : "Create route"}
+              {posting ? t("routeNew.actions.creating") : t("routeNew.actions.create")}
             </button>
             <button
               type="button"
               onClick={() => nav(-1)}
               style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #eee", background: "#fafafa" }}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </form>

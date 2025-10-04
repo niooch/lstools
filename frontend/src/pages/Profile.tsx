@@ -1,6 +1,7 @@
 // src/pages/Profile.tsx
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import type { UserProfilePublic, Route } from "../types";
 
@@ -10,6 +11,7 @@ type ContactInfo = {
 };
 
 export default function Profile() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<UserProfilePublic | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -22,7 +24,6 @@ export default function Profile() {
       try {
         setErr(null);
 
-        // Get public profile + routes + (optional) core user for email/phone
         const [uRes, rRes, coreRes] = await Promise.all([
           api.get(`/api/users/profiles/${id}`),
           api.get(`/api/transport/routes?owner=${id}`),
@@ -38,7 +39,6 @@ export default function Profile() {
         const items: Route[] = Array.isArray(rRes.data) ? rRes.data : rRes.data.results || [];
         setRoutes(items);
 
-        // Prefer explicit core user contact fields; fall back to profile if present
         const core: any = coreRes?.data || {};
         setContact({
           email: core.email ?? (u as any).email ?? null,
@@ -46,19 +46,23 @@ export default function Profile() {
         });
       } catch (e: any) {
         if (!on) return;
-        setErr(e.response?.data?.detail || "Failed to load profile");
+        setErr(e.response?.data?.detail || t("common.loadFailedProfile"));
       }
     }
     if (id) load();
     return () => {
       on = false;
     };
-  }, [id]);
+  }, [id, t]);
 
   if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-  if (!user) return <div>Loading…</div>;
+  if (!user) return <div>{t("common.loading")}</div>;
 
   const name = user.display_name || user.username;
+
+  // Try to translate status if available (active/sold/cancelled)
+  const statusLabel = (status?: string) =>
+    status ? (t(`routes.status.${status}`, status) as string) : "—";
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -71,7 +75,7 @@ export default function Profile() {
         {user.bio ? (
           <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{user.bio}</p>
         ) : (
-          <p style={{ opacity: 0.6, marginTop: 8 }}>No bio yet.</p>
+          <p style={{ opacity: 0.6, marginTop: 8 }}>{t("profile.noBio")}</p>
         )}
 
         {/* Contact block */}
@@ -84,7 +88,9 @@ export default function Profile() {
           }}
         >
           <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Email</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+              {t("common.email")}
+            </div>
             {contact.email ? (
               <a href={`mailto:${contact.email}`} style={{ color: "#2563eb", wordBreak: "break-all" }}>
                 {contact.email}
@@ -95,7 +101,9 @@ export default function Profile() {
           </div>
 
           <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Phone</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+              {t("common.phone")}
+            </div>
             {contact.phone_number ? (
               <a
                 href={`tel:${String(contact.phone_number).replace(/\s+/g, "")}`}
@@ -110,29 +118,36 @@ export default function Profile() {
         </div>
 
         <div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
-          Routes · active {user.route_stats.active} · sold {user.route_stats.sold} · cancelled {user.route_stats.cancelled} · total{" "}
-          {user.route_stats.total}
+          {t("profile.stats", {
+            active: user.route_stats.active,
+            sold: user.route_stats.sold,
+            cancelled: user.route_stats.cancelled,
+            total: user.route_stats.total,
+          })}
         </div>
       </div>
 
-      <h3 style={{ margin: "8px 0" }}>Active routes</h3>
+      <h3 style={{ margin: "8px 0" }}>{t("profile.activeRoutes")}</h3>
       <div style={{ display: "grid", gap: 10 }}>
         {routes.length === 0 ? (
-          <div>No active routes.</div>
+          <div>{t("profile.noActiveRoutes")}</div>
         ) : (
           routes.map((r) => (
             <div key={r.id} style={{ border: "1px solid #eee", borderRadius: 8, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <strong>
-                  #{r.id} · {r.status.toUpperCase()}
+                  #{r.id} · {statusLabel(r.status)}
                 </strong>
                 <span>
                   {new Date(r.time_start).toLocaleString()} → {new Date(r.time_end).toLocaleTimeString()}
                 </span>
               </div>
-              <div>vehicle: {r.vehicle_type} · crew: {r.crew}</div>
               <div>
-                length: {r.length_km ?? "?"} km · price: {r.price ?? "?"} {r.currency} · ppk: {r.price_per_km ?? "-"}
+                {t("routes.vehicle")}: {r.vehicle_type} · {t("routes.crew")}: {r.crew}
+              </div>
+              <div>
+                {t("routes.length")}: {r.length_km ?? "?"} km · {t("routes.price")}: {r.price ?? "?"} {r.currency} ·{" "}
+                {t("routes.ppk")}: {r.price_per_km ?? "-"}
               </div>
             </div>
           ))
@@ -140,7 +155,7 @@ export default function Profile() {
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <Link to="/routes">← Back to routes</Link>
+        <Link to="/routes">← {t("routes.backToList")}</Link>
       </div>
     </div>
   );

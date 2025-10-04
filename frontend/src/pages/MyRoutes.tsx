@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import crewSingle from "../assets/crew-single.png";
 import crewDouble from "../assets/crew-double.png";
@@ -147,6 +148,7 @@ function getOwnerIdAndLabel(
 
 /* ---------------- component ---------------- */
 export default function MyRoutes() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<RouteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -209,30 +211,30 @@ export default function MyRoutes() {
         if (Object.keys(byUsername).length) setUserByUsername((prev) => ({ ...byUsername, ...prev }));
       }
     } catch (e: any) {
-      setErr(e?.response?.data?.detail || "Failed to load your routes.");
+      setErr(e?.response?.data?.detail || t("state.errorMine"));
     } finally {
       setLoading(false);
     }
   }
 
   const table = useMemo(() => {
-    if (loading) return <div>Loading…</div>;
+    if (loading) return <div>{t("state.loading")}</div>;
     if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-    if (rows.length === 0) return <div>You haven’t posted any routes yet.</div>;
+    if (rows.length === 0) return <div>{t("state.emptyMine")}</div>;
 
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", borderSpacing: 0, minWidth: 980 }}>
           <thead>
             <tr style={{ textAlign: "left" }}>
-              <th style={th}>Origin</th>
+              <th style={th}>{t("table.headers.origin")}</th>
               <th style={th}></th>
-              <th style={th}>Destination</th>
-              <th style={th}>Length (km)</th>
-              <th style={th}>Crew</th>
-              <th style={th}>Vehicle</th>
-              <th style={th}>User</th>
-              <th style={th}>Price</th>
+              <th style={th}>{t("table.headers.destination")}</th>
+              <th style={th}>{t("table.headers.lengthKm", { unit: t("unit.kmShort") })}</th>
+              <th style={th}>{t("table.headers.crew")}</th>
+              <th style={th}>{t("table.headers.vehicle")}</th>
+              <th style={th}>{t("table.headers.user")}</th>
+              <th style={th}>{t("table.headers.price")}</th>
             </tr>
           </thead>
           <tbody>
@@ -249,7 +251,8 @@ export default function MyRoutes() {
 
               const crew = (r.crew || "").toString().toLowerCase();
               const crewIcon = crew === "double" ? crewDouble : crewSingle;
-              const crewAlt = crew === "double" ? "Double crew" : "Single crew";
+              const crewAlt =
+                crew === "double" ? t("table.alt.doubleCrew") : t("table.alt.singleCrew");
 
               const lenNum =
                 typeof r.length_km === "string" ? Number(r.length_km) : (r.length_km as number | undefined | null);
@@ -292,7 +295,7 @@ export default function MyRoutes() {
                   </td>
 
                   {/* Arrow */}
-                  <td style={{ ...tdCenter, width: 40, opacity: 0.7, fontSize: 18 }} title="Route">
+                  <td style={{ ...tdCenter, width: 40, opacity: 0.7, fontSize: 18 }} title={t("table.routeArrowTitle")}>
                     {ARROW}
                   </td>
 
@@ -326,7 +329,7 @@ export default function MyRoutes() {
                   <td style={td}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {vehAttr ? (
-                        <AttrBadge title={`Attribute: ${vehAttr.toUpperCase()}`}>
+                        <AttrBadge title={t("table.attrBadgeTitle", { attr: vehAttr.toUpperCase() })}>
                           {vehAttr[0].toUpperCase()}
                         </AttrBadge>
                       ) : null}
@@ -339,7 +342,7 @@ export default function MyRoutes() {
                     {ownerId ? (
                       <Link
                         to={`/users/${ownerId}`}
-                        title="Open profile"
+                        title={t("table.openProfile")}
                         style={{ color: "#0a58ca", textDecoration: "underline" }}
                       >
                         {ownerLabel}
@@ -363,17 +366,17 @@ export default function MyRoutes() {
         </table>
       </div>
     );
-  }, [rows, err, loading, locById, vehById, userById, userByUsername]);
+  }, [rows, err, loading, locById, vehById, userById, userByUsername, t]);
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <h2 style={{ margin: 0 }}>My routes</h2>
+        <h2 style={{ margin: 0 }}>{t("page.myRoutes.title")}</h2>
         <button
           onClick={() => void loadMine()}
           style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", background: "#fff", cursor: "pointer" }}
         >
-          Refresh
+          {t("page.myRoutes.refresh")}
         </button>
       </div>
       {table}
@@ -509,5 +512,5 @@ const th: React.CSSProperties = {
 };
 const td: React.CSSProperties = { padding: "10px 8px", verticalAlign: "middle", whiteSpace: "nowrap" };
 const tdMono: React.CSSProperties = { ...td, fontVariantNumeric: "tabular-nums" };
-const tdCenter: React.CSSProperties = { ...td, textAlign: "center" };
+const tdCenter: React.CSS_PROPERTIES = { ...td, textAlign: "center" };
 const subline: React.CSSProperties = { fontSize: 12, opacity: 0.7, marginTop: 2 };

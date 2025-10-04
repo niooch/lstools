@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Routes, Route, NavLink, Navigate, useParams, Link } from "react-router-dom";
 import LangSwitch from "./components/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 
 // pages
 import RouteDetails from "./pages/RouteDetails";
@@ -19,8 +20,8 @@ import Register from "./pages/Register";
 import { useAuth } from "./context/AuthContext";
 
 function UsersToProfile() {
-    const { id } = useParams();
-    return <Navigate to={`/profile/${id}`} replace />;
+  const { id } = useParams();
+  return <Navigate to={`/profile/${id}`} replace />;
 }
 
 function NavItem({
@@ -48,7 +49,6 @@ function NavItem({
         fontWeight: 500,
       })}
     >
-      {/* simple dot icon; swap for an SVG if you like */}
       <span
         aria-hidden
         style={{
@@ -66,6 +66,7 @@ function NavItem({
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const { token, logout } = useAuth();
 
@@ -111,14 +112,14 @@ export default function App() {
             }}
           >
             {/* Put your logo file in /public/logo.svg */}
-            <img src="/logo.svg" alt="Logo" style={{ width: 28, height: 28 }} />
+            <img src="/logo.svg" alt={t("brand.logoAlt")} style={{ width: 28, height: 28 }} />
             {!collapsed && (
-              <strong style={{ color: "#111", fontSize: 16 }}>Transports</strong>
+              <strong style={{ color: "#111", fontSize: 16 }}>{t("brand.name")}</strong>
             )}
           </Link>
 
           <button
-            aria-label="Toggle menu"
+            aria-label={t("top.toggleMenu")}
             onClick={() => setCollapsed((v) => !v)}
             style={{
               border: "1px solid #eee",
@@ -128,7 +129,7 @@ export default function App() {
               cursor: "pointer",
               fontSize: 16,
             }}
-            title="Toggle menu"
+            title={t("top.toggleMenu")}
           >
             ☰
           </button>
@@ -136,28 +137,22 @@ export default function App() {
 
         {/* NAVIGATION */}
         <nav style={{ display: "grid", gap: 6 }}>
-          <NavItem to="/routes" collapsed={collapsed} label="Routes" />
-          <NavItem to="/routes/new" collapsed={collapsed} label="Add route" />
-          <NavItem to="/my-routes" collapsed={collapsed} label="My routes" />
-          <NavItem to="/chat" collapsed={collapsed} label="Chat" />
+          <NavItem to="/routes" collapsed={collapsed} label={t("nav.routes")} />
+          <NavItem to="/routes/new" collapsed={collapsed} label={t("nav.addRoute")} />
+          <NavItem to="/my-routes" collapsed={collapsed} label={t("nav.myRoutes")} />
+          <NavItem to="/chat" collapsed={collapsed} label={t("nav.chat")} />
           {/* Visible to everyone */}
-          <NavItem to="/verify" collapsed={collapsed} label="Verification" />
-          {!token && <NavItem to="/login" collapsed={collapsed} label="Login" />}
-          {!token && (
-            <NavItem to="/register" collapsed={collapsed} label="Register" />
-          )}
+          <NavItem to="/verify" collapsed={collapsed} label={t("nav.verification")} />
+          {!token && <NavItem to="/login" collapsed={collapsed} label={t("nav.login")} />}
+          {!token && <NavItem to="/register" collapsed={collapsed} label={t("nav.register")} />}
           {token && (
-            <NavItem
-              to="/profile/edit"
-              collapsed={collapsed}
-              label="Edit profile"
-            />
+            <NavItem to="/profile/edit" collapsed={collapsed} label={t("nav.editProfile")} />
           )}
         </nav>
 
         {!collapsed && (
           <div style={{ marginTop: "auto", fontSize: 12, opacity: 0.6 }}>
-            v1 · {new Date().getFullYear()}
+            {t("footer.version", { version: "v1", year: new Date().getFullYear() })}
           </div>
         )}
       </aside>
@@ -178,7 +173,7 @@ export default function App() {
             zIndex: 10,
           }}
         >
-            <LangSwitch />
+          <LangSwitch />
 
           {token ? (
             <button
@@ -190,9 +185,9 @@ export default function App() {
                 borderRadius: 8,
                 cursor: "pointer",
               }}
-              title="Log out"
+              title={t("top.logoutTitle")}
             >
-              Logout
+              {t("top.logout")}
             </button>
           ) : null}
         </header>
@@ -211,8 +206,8 @@ export default function App() {
             <Route path="/profile/edit" element={<ProfileEdit />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="routes/:id" element={<RouteDetails />} />
-            <Route path="*" element={<div>404 Not Found</div>} />
+            <Route path="/routes/:id" element={<RouteDetails />} />
+            <Route path="*" element={<div>{t("common.notFound")}</div>} />
           </Routes>
         </main>
       </div>

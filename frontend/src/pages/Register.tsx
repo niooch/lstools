@@ -1,6 +1,7 @@
 // src/pages/Register.tsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 
 const REGISTER_PATH = (import.meta.env.VITE_AUTH_REGISTER as string) || "/api/users/register";
@@ -8,6 +9,7 @@ const REGISTER_PATH = (import.meta.env.VITE_AUTH_REGISTER as string) || "/api/us
 type ServerErrors = Record<string, string[] | string>;
 
 export default function Register() {
+  const { t } = useTranslation();
   const nav = useNavigate();
   const [form, setForm] = useState({
     username: "",
@@ -21,7 +23,6 @@ export default function Register() {
 
   function setField<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
-    // clear field-specific error when user edits
     if (fieldErrors[k]) {
       const next = { ...fieldErrors };
       delete next[k];
@@ -35,12 +36,13 @@ export default function Register() {
     setFieldErrors({});
 
     if (!form.username || !form.email || !form.password) {
-      setError("Please fill all required fields.");
+      setError(t("auth.fill_required"));
       return;
     }
     if (form.password !== form.confirm) {
-      setError("Passwords do not match.");
-      setFieldErrors((p) => ({ ...p, confirm: "Passwords do not match." }));
+      const msg = t("auth.passwords_mismatch");
+      setError(msg);
+      setFieldErrors((p) => ({ ...p, confirm: msg }));
       return;
     }
 
@@ -55,15 +57,15 @@ export default function Register() {
       if (r.status === 200 || r.status === 201) {
         nav("/login?registered=1");
       } else {
-        setError("Registration failed. Try again.");
+        setError(t("auth.registration_failed"));
       }
     } catch (err: any) {
       const data = err?.response?.data;
       if (data && typeof data === "object") {
         setFieldErrors(data as ServerErrors);
-        setError((data.detail as string) || "Registration failed.");
+        setError((data.detail as string) || t("auth.registration_failed"));
       } else {
-        setError("Network error. Try again.");
+        setError(t("auth.network_error"));
       }
     } finally {
       setSubmitting(false);
@@ -81,29 +83,30 @@ export default function Register() {
     <div style={styles.wrap}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <h2 style={styles.h2}>Create account</h2>
+          <h2 style={styles.h2}>{t("auth.register_title")}</h2>
           <p style={styles.subtle}>
-            Already have an account?{" "}
+            {t("auth.have_account")}{" "}
             <Link to="/login" style={styles.link}>
-              Log in
+              {t("auth.login_link")}
             </Link>
           </p>
         </div>
 
         {error && (
           <div style={styles.topError} role="alert" aria-live="polite">
-            {typeof error === "string" ? error : "Something went wrong."}
+            {typeof error === "string" ? error : t("auth.registration_failed")}
           </div>
         )}
 
         <form onSubmit={submit} style={styles.form}>
           <label style={styles.label}>
-            <span style={styles.labelText}>Username*</span>
+            <span style={styles.labelText}>{t("auth.username")}</span>
             <input
               style={styles.input}
               value={form.username}
               onChange={(e) => setField("username", e.target.value)}
               autoComplete="username"
+              placeholder={t("auth.username_placeholder")}
               disabled={submitting}
               required
             />
@@ -111,13 +114,14 @@ export default function Register() {
           </label>
 
           <label style={styles.label}>
-            <span style={styles.labelText}>Email*</span>
+            <span style={styles.labelText}>{t("auth.email")}</span>
             <input
               style={styles.input}
               type="email"
               value={form.email}
               onChange={(e) => setField("email", e.target.value)}
               autoComplete="email"
+              placeholder={t("auth.email_placeholder")}
               disabled={submitting}
               required
             />
@@ -125,17 +129,17 @@ export default function Register() {
           </label>
 
           <label style={styles.label}>
-            <span style={styles.labelText}>Password*</span>
+            <span style={styles.labelText}>{t("auth.password")}</span>
             <input
               style={styles.input}
               type="password"
               value={form.password}
               onChange={(e) => setField("password", e.target.value)}
               autoComplete="new-password"
+              placeholder={t("auth.password_placeholder")}
               disabled={submitting}
               required
             />
-            {/* Some backends return password1/password2 errors */}
             {fieldErrors?.password1 && (
               <div style={styles.fieldError}>
                 {Array.isArray(fieldErrors.password1)
@@ -153,13 +157,14 @@ export default function Register() {
           </label>
 
           <label style={styles.label}>
-            <span style={styles.labelText}>Confirm password*</span>
+            <span style={styles.labelText}>{t("auth.confirm_password")}</span>
             <input
               style={styles.input}
               type="password"
               value={form.confirm}
               onChange={(e) => setField("confirm", e.target.value)}
               autoComplete="new-password"
+              placeholder={t("auth.confirm_password_placeholder")}
               disabled={submitting}
               required
             />
@@ -174,10 +179,9 @@ export default function Register() {
           </label>
 
           <button type="submit" style={styles.button} disabled={submitting}>
-            {submitting ? "Creating…" : "Create account"}
+            {submitting ? t("auth.creating") : t("auth.create_account")}
           </button>
 
-          {/* Non-field / generic server errors */}
           {fieldErrors?.non_field_errors && (
             <div style={styles.fieldError}>
               {Array.isArray(fieldErrors.non_field_errors)

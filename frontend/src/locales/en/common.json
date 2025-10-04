@@ -1,79 +1,372 @@
 {
-  "nav": {
-    "routes": "Routes",
-    "myRoutes": "My routes",
-    "chat": "Chat",
-    "users": "Users",
-    "verify": "Verification",
-    "profile": "Profile",
-    "logout": "Log out",
-    "login": "Log in",
-    "register": "Register"
-  },
-  "actions": {
-    "save": "Save",
-    "reset": "Reset",
-    "create": "Create",
-    "apply": "Apply",
-    "details": "Details",
-    "sold": "Mark as sold",
-    "back": "Back"
-  },
-  "auth": {
-    "createAccount": "Create account",
-    "haveAccount": "Already have an account?",
-    "loginHere": "Log in",
-    "username": "Username",
-    "email": "Email",
-    "password": "Password",
-    "confirmPassword": "Confirm password",
-    "registrationOk": "Registration successful. You can now log in.",
-    "registrationFail": "Registration failed. Try again."
-  },
-  "chat": {
-    "title": "Community chat",
-    "loading": "Loading…",
-    "noMessages": "No messages yet.",
-    "send": "Send",
-    "tip": "Tip: press Enter to send (Shift+Enter for a new line). You can also send an image-only message.",
-    "refresh": "Refresh",
-    "popout": "Pop out",
-    "jumpToNewest": "Jump to newest"
-  },
-  "routes": {
-    "title": "Routes",
-    "table": {
-      "distance": "Dist",
-      "origin": "Origin",
-      "destination": "Destination",
-      "length": "Length (km)",
-      "crew": "Crew",
-      "vehicle": "Vehicle",
-      "user": "User",
-      "price": "Price",
-      "more": "More"
+    "brand": {
+        "name": "Transports",
+        "logoAlt": "Logo"
     },
-    "startAt": "Start",
-    "endAt": "Finish",
-    "duration": "Duration",
-    "ppk": "price/km",
-    "noResults": "No routes found."
-  },
-  "profile": {
-    "editTitle": "Edit profile",
-    "firstName": "First name",
-    "lastName": "Last name",
-    "phone": "Phone number",
-    "about": "About me",
-    "emailVerified": "Email verified",
-    "emailNotVerified": "Email not verified",
-    "updated": "Profile updated!",
-    "failed": "Save failed."
-  },
-  "lang": {
-    "pl": "Polish",
-    "en": "English",
-    "choose": "Language"
-  }
+    "nav": {
+        "routes": "Routes",
+        "addRoute": "Add route",
+        "myRoutes": "My routes",
+        "chat": "Chat",
+        "verification": "Verification",
+        "login": "Login",
+        "register": "Register",
+        "editProfile": "Edit profile"
+    },
+    "top": {
+        "toggleMenu": "Toggle menu",
+        "logout": "Logout",
+        "logoutTitle": "Log out"
+    },
+    "footer": {
+        "version": "{{version}} · {{year}}"
+    },
+    "common": {
+        "notFound": "404 Not Found"
+    },
+    "lang": {
+        "choose": "Choose language"
+    },
+    "chat": {
+        "title": "Community chat",
+        "refresh": "Refresh",
+        "popOut": "Pop out",
+        "loadFailed": "Failed to load chat.",
+        "sendFailed": "Send failed.",
+        "loading": "Loading…",
+        "empty": "No messages yet.",
+        "scrollToNewest": "Scroll to newest",
+        "jumpToNewest": "Jump to newest",
+        "placeholder": "Write a message…",
+        "sending": "Sending…",
+        "send": "Send",
+        "openProfile": "Open {{name}}'s profile",
+        "attachmentAlt": "chat attachment",
+        "tip": "Tip: press Enter to send (use Shift+Enter for a new line). You can also send an image-only message."
+    },
+
+        "page": {
+            "myRoutes": {
+                "title": "My routes",
+                "refresh": "Refresh"
+            }
+        },
+        "state": {
+            "loading": "Loading…",
+            "errorMine": "Failed to load your routes.",
+            "emptyMine": "You haven’t posted any routes yet."
+        },
+        "table": {
+            "headers": {
+                "origin": "Origin",
+                "destination": "Destination",
+                "lengthKm": "Length ({{unit}})",
+                "crew": "Crew",
+                "vehicle": "Vehicle",
+                "user": "User",
+                "price": "Price"
+            },
+            "routeArrowTitle": "Route",
+            "alt": {
+                "singleCrew": "Single crew",
+                "doubleCrew": "Double crew"
+            },
+            "attrBadgeTitle": "Attribute: {{attr}}",
+            "openProfile": "Open profile"
+        },
+        "unit": {
+            "kmShort": "km"
+        },
+        "common": {
+            "loading": "Loading…",
+            "email": "Email",
+            "phone": "Phone",
+            "loadFailedProfile": "Failed to load profile"
+        },
+        "profile": {
+            "noBio": "No bio yet.",
+            "stats": "Routes · active {{active}} · sold {{sold}} · cancelled {{cancelled}} · total {{total}}",
+            "activeRoutes": "Active routes",
+            "noActiveRoutes": "No active routes."
+        },
+        "routes": {
+            "vehicle": "vehicle",
+            "crew": "crew",
+            "length": "length",
+            "price": "price",
+            "ppk": "ppk",
+            "backToList": "Back to routes",
+            "status": {
+                "active": "active",
+                "sold": "sold",
+                "cancelled": "cancelled"
+            }
+        },
+        "common": {
+            "loading": "Loading…",
+            "back": "Back",
+            "save": "Save",
+            "saving": "Saving…",
+            "saveChanges": "Save changes",
+            "reset": "Reset",
+            "characters": "characters"
+        },
+        "profileEdit": {
+            "title": "Edit profile",
+            "loadError": "Failed to load profile.",
+            "saveOk": "Profile updated!",
+            "saveError": "Save failed.",
+            "firstName": "First name",
+            "lastName": "Last name",
+            "email": "Email",
+            "phone": "Phone number",
+            "publicProfile": "Public profile",
+            "displayName": "Display name",
+            "nicknameColor": "Nickname color",
+            "bio": "Bio",
+            "aboutPrivate": "About me (private account field)",
+            "internalDescHint": "Saved to /api/users/me/update",
+            "placeholder": {
+                "phone": "+48 123 456 789",
+                "displayName": "How others will see you",
+                "bio": "Tell others a bit about you…",
+                "description": "Internal description on your account"
+            },
+            "emailVerified": "Email verified",
+            "emailNotVerified": "Email not verified",
+            "verifiedAt": "Verified at {{date}}",
+            "notVerifiedTitle": "Not verified"
+        },
+        "auth": {
+            "login_title": "Sign in",
+            "username_or_email": "Username or email",
+            "username_or_email_placeholder": "your username or email",
+            "password": "Password",
+            "password_placeholder": "your password",
+            "sign_in": "Sign in",
+            "login_failed": "Login failed",
+            "register_title": "Create account",
+            "have_account": "Already have an account?",
+            "login_link": "Log in",
+            "username": "Username",
+            "username_placeholder": "Choose a username",
+            "email": "Email",
+            "email_placeholder": "name@example.com",
+            "password": "Password",
+            "password_placeholder": "Enter password",
+            "confirm_password": "Confirm password",
+            "confirm_password_placeholder": "Repeat password",
+            "create_account": "Create account",
+            "creating": "Creating…",
+            "fill_required": "Please fill all required fields.",
+            "passwords_mismatch": "Passwords do not match.",
+            "registration_failed": "Registration failed. Try again.",
+            "network_error": "Network error. Try again."
+        },
+        "common": {
+            "loading": "Loading…"
+        },
+        "routes": {
+            "details": {
+                "title": "Route #{{id}}",
+                "route_map": "Route map",
+                "localisations": "Localisations",
+                "no_localisations": "No localisations available.",
+                "origin": "Origin",
+                "destination": "Destination",
+                "stop_n": "Stop {{n}}",
+                "seller": "Seller",
+                "open_profile": "Open profile",
+                "profile_link_unavailable": "(Profile link unavailable)",
+                "unknown": "Unknown",
+                "start": "Start",
+                "end": "End",
+                "no_bio": "No bio.",
+                "email": "Email",
+                "phone": "Phone",
+                "duration": "Duration",
+                "length": "Length",
+                "vehicle": "Vehicle",
+                "vehicle_attribute": "Vehicle attribute",
+                "crew": "Crew",
+                "price": "Price",
+                "price_per_km": "Price / km",
+                "mark_as_sold": "Mark as sold",
+                "marking": "Marking…",
+                "confirm_mark_sold": "Mark this route as sold?",
+                "sell_ok": "Route marked as sold.",
+                "errors": {
+                    "load_failed": "Failed to load route.",
+                    "sell_failed": "Failed to mark as sold."
+                },
+                "status": {
+                    "active": "ACTIVE",
+                    "sold": "SOLD",
+                    "cancelled": "CANCELLED"
+                }
+            }
+        },
+        "common": {
+            "cancel": "Cancel",
+            "clickToFill": "Click to fill"
+        },
+        "routeNew": {
+            "title": "Add a new route",
+            "loading": "Loading dictionaries…",
+            "knownCodes": "Known localisation codes:",
+            "andMore": "…(+{{count}} more)",
+            "timeFormat": "hh:mm DD/MM/YYYY",
+
+            "fields": {
+                "origin": "Origin (localisation code)",
+                "stops": "Stops (optional, up to {{max}})",
+                "destination": "Destination (localisation code)",
+                "timeStart": "Time start ({{format}})",
+                "timeEnd": "Time end ({{format}})",
+                "vehicleType": "Vehicle type (by name)",
+                "crew": "Crew",
+                "priceOptional": "Price (optional)",
+                "currency": "Currency"
+            },
+
+            "placeholders": {
+                "origin": "e.g. SZZ1",
+                "firstStop": "Add a stop code (auto-adds next)",
+                "stop": "Stop code",
+                "destination": "e.g. WRO1",
+                "vehicle": "e.g. Van",
+                "price": "e.g. 1200.00"
+            },
+
+            "examples": {
+                "timeExample": "13:15 21/09/2025"
+            },
+
+            "crew": {
+                "single": "Single",
+                "double": "Double"
+            },
+
+            "actions": {
+                "removeStop": "Remove stop",
+                "create": "Create route",
+                "creating": "Creating…"
+            },
+
+            "attributeTitle": "Attribute: {{attr}}",
+
+            "errors": {
+                "loadDicts": "Failed to load dictionaries.",
+                "unknownOrigin": "Unknown origin: \"{{name}}\"",
+                "unknownDestination": "Unknown destination: \"{{name}}\"",
+                "unknownVehicle": "Unknown vehicle type: \"{{name}}\"",
+                "invalidStart": "Invalid start time (use {{format}})",
+                "invalidEnd": "Invalid end time (use {{format}})",
+                "unknownStop": "Unknown stop localisation: \"{{name}}\"",
+                "create": "Failed to create route."
+            }
+        },
+        "routesList": {
+            "title": "Routes",
+            "state": {
+                "loading": "Loading…",
+                "error": "Failed to load routes.",
+                "empty": "No routes found."
+            },
+            "table": {
+                "dist": "Dist",
+                "origin": "Origin",
+                "destination": "Destination",
+                "lengthKm": "Length (km)",
+                "crew": "Crew",
+                "vehicle": "Vehicle",
+                "user": "User",
+                "price": "Price",
+                "more": "More",
+                "routeArrowTitle": "Route"
+            },
+            "details": "Details →",
+            "detailsTitle": "Open route details",
+            "openProfile": "Open profile",
+            "kmAbbr": "km",
+            "crew": {
+                "single": "Single crew",
+                "double": "Double crew"
+            },
+            "vehicle": {
+                "attribute": "Attribute: {{attr}}"
+            },
+            "filters": {
+                "header": "Filter & sort",
+                "originName": "Origin (name)",
+                "destinationName": "Destination (name)",
+                "originPlaceholder": "e.g. WRO1",
+                "destinationPlaceholder": "e.g. SZZ1",
+                "startFrom": "Start from",
+                "endUntil": "End until",
+                "crew": "Crew",
+                "crewAny": "Any",
+                "crewSingle": "Single",
+                "crewDouble": "Double",
+                "sort": "Sort",
+                "sortNone": "—",
+                "sortPriceAsc": "Price ↑",
+                "sortPriceDesc": "Price ↓",
+                "sortPPKAsc": "Price/km ↑",
+                "sortPPKDesc": "Price/km ↓",
+                "nearHeader": "Near address (optional)",
+                "searchNear": "Search near",
+                "searchNearPlaceholder": "City or address",
+                "radius": "Radius",
+                "using": "Using:",
+                "apply": "Apply",
+                "clear": "Clear"
+            }
+        },
+        "verify": {
+            "title": "Verification documents",
+            "upload": {
+                "title": "Upload a document",
+                "type": "Type",
+                "option": {
+                    "company": "Company",
+                    "id": "ID / Passport",
+                    "license": "License",
+                    "other": "Other"
+                },
+                "button": "Upload",
+                "buttonUploading": "Uploading…",
+                "chooseFileError": "Choose a file.",
+                "failed": "Upload failed."
+            },
+            "list": {
+                "title": "My documents"
+            },
+            "loading": "Loading…",
+            "error": "Failed to load documents.",
+            "empty": "No documents yet.",
+            "item": {
+                "uploadedAt": "uploaded {{when}}",
+                "reviewedAt": "reviewed {{when}}"
+            },
+            "actions": {
+                "open": "Open",
+                "delete": "Delete"
+            },
+            "delete": {
+                "onlyPending": "Only pending documents can be deleted.",
+                "confirm": "Delete this document?",
+                "failed": "Delete failed."
+            },
+            "adminNote": {
+                "title": "Admin note"
+            },
+            "status": {
+                "pending": "PENDING",
+                "approved": "APPROVED",
+                "rejected": "REJECTED",
+                "unknown": "UNKNOWN"
+            }
+        }
 }
 

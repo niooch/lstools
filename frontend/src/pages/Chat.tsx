@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
 import { api } from "../lib/api";
 import { resolveUrl } from "../lib/media";
 import { getLastId, mergeUnique } from "../lib/chat";
@@ -25,6 +26,7 @@ export type ChatMessage = {
 const BASE = "/api/chat/messages";
 
 export default function Chat() {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export default function Chat() {
       setAutoStick(true);
       requestAnimationFrame(() => scrollToBottom(true));
     } catch (e: any) {
-      setErr(e.response?.data?.detail || "Failed to load chat.");
+      setErr(e.response?.data?.detail || t("chat.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -145,7 +147,7 @@ export default function Chat() {
       setPendingNew(0);
       requestAnimationFrame(() => scrollToBottom(false));
     } catch (e: any) {
-      setErr(e.response?.data?.detail || "Send failed.");
+      setErr(e.response?.data?.detail || t("chat.sendFailed"));
     } finally {
       setPosting(false);
     }
@@ -182,10 +184,10 @@ export default function Chat() {
   return (
     <div style={{ display: "grid", gap: 12, maxWidth: 900 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ margin: 0 }}>Community chat</h2>
+        <h2 style={{ margin: 0 }}>{t("chat.title")}</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={fetchNew}>Refresh</button>
-          <button onClick={popOut}>Pop out</button>
+          <button onClick={fetchNew}>{t("chat.refresh")}</button>
+          <button onClick={popOut}>{t("chat.popOut")}</button>
         </div>
       </div>
 
@@ -205,9 +207,9 @@ export default function Chat() {
         }}
       >
         {loading ? (
-          <div>Loading…</div>
+          <div>{t("chat.loading")}</div>
         ) : messages.length === 0 ? (
-          <div>No messages yet.</div>
+          <div>{t("chat.empty")}</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {messages.map((m) => {
@@ -225,7 +227,7 @@ export default function Chat() {
                           fontWeight: 600,
                           textDecoration: "none",
                         }}
-                        title={`Open ${display}'s profile`}
+                        title={t("chat.openProfile", { name: display })}
                       >
                         {display}
                       </Link>
@@ -238,7 +240,11 @@ export default function Chat() {
                   {m.content && <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>}
                   {m.image && (
                     <div>
-                      <img src={resolveUrl(m.image)} alt="chat attachment" style={{ maxWidth: "100%", borderRadius: 10 }} />
+                      <img
+                        src={resolveUrl(m.image)}
+                        alt={t("chat.attachmentAlt")}
+                        style={{ maxWidth: "100%", borderRadius: 10 }}
+                      />
                     </div>
                   )}
                 </div>
@@ -265,9 +271,9 @@ export default function Chat() {
               fontSize: 12,
               cursor: "pointer",
             }}
-            title="Scroll to newest"
+            title={t("chat.scrollToNewest")}
           >
-            Jump to newest ({pendingNew})
+            {t("chat.jumpToNewest")} ({pendingNew})
           </button>
         )}
       </div>
@@ -275,7 +281,7 @@ export default function Chat() {
       <div style={{ border: "1px solid #eee", borderRadius: 10, padding: 12, display: "grid", gap: 8 }}>
         <textarea
           rows={3}
-          placeholder="Write a message…"
+          placeholder={t("chat.placeholder")}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDownText}
@@ -283,11 +289,14 @@ export default function Chat() {
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input ref={fileRef} type="file" accept="image/*" />
           <button onClick={send} disabled={posting}>
-            {posting ? "Sending…" : "Send"}
+            {posting ? t("chat.sending") : t("chat.send")}
           </button>
         </div>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
-          Tip: press <kbd>Enter</kbd> to send (use <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line). You can also send an image-only message.
+          <Trans i18nKey="chat.tip">
+            Tip: press <kbd>Enter</kbd> to send (use <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line). You can also send
+            an image-only message.
+          </Trans>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { useTranslation } from "react-i18next";
 
 type MeResponse = {
   id: number;
@@ -22,6 +23,7 @@ type ProfileMeResponse = {
 };
 
 export default function ProfileEdit() {
+  const { t } = useTranslation();
   const nav = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,7 @@ export default function ProfileEdit() {
 
   useEffect(() => {
     void loadMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadMe() {
@@ -84,7 +87,7 @@ export default function ProfileEdit() {
         email_verified_at: core.email_verified_at || null,
       });
     } catch (e: any) {
-      setErr(e?.response?.data?.detail || "Failed to load profile.");
+      setErr(e?.response?.data?.detail || t("profileEdit.loadError"));
     } finally {
       setLoading(false);
     }
@@ -110,16 +113,16 @@ export default function ProfileEdit() {
         bio: form.bio || "",
       });
 
-      setOk("Profile updated!");
+      setOk(t("profileEdit.saveOk"));
     } catch (e: any) {
       const data = e?.response?.data;
       if (data && typeof data === "object") {
         const msg = Object.entries(data)
           .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
           .join("\n");
-        setErr(msg || "Save failed.");
+        setErr(msg || t("profileEdit.saveError"));
       } else {
-        setErr("Save failed.");
+        setErr(t("profileEdit.saveError"));
       }
     } finally {
       setSaving(false);
@@ -133,26 +136,17 @@ export default function ProfileEdit() {
   return (
     <div style={page}>
       <div style={headerRow}>
-        <h1 style={{ margin: 0, fontSize: 24 }}>Edit profile</h1>
-        <button onClick={() => nav(-1)} style={btnGhost}>Back</button>
+        <h1 style={{ margin: 0, fontSize: 24 }}>{t("profileEdit.title")}</h1>
+        <button onClick={() => nav(-1)} style={btnGhost}>{t("common.back")}</button>
       </div>
 
-      {ok && (
-        <div style={bannerOk}>
-          {ok}
-        </div>
-      )}
-      {err && (
-        <div style={bannerErr}>
-          {err}
-        </div>
-      )}
+      {ok && <div style={bannerOk}>{ok}</div>}
+      {err && <div style={bannerErr}>{err}</div>}
 
       {loading ? (
-        <div style={card}>Loading…</div>
+        <div style={card}>{t("common.loading")}</div>
       ) : (
         <div style={card}>
-
           {/* top meta */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ fontSize: 14, opacity: 0.7 }}>@{form.username || "username"}</div>
@@ -161,7 +155,7 @@ export default function ProfileEdit() {
 
           {/* names + contact */}
           <div style={gridTwo}>
-            <Field label="First name">
+            <Field label={t("profileEdit.firstName")}>
               <input
                 value={form.first_name}
                 onChange={(e) => onChange("first_name", e.target.value)}
@@ -169,7 +163,7 @@ export default function ProfileEdit() {
               />
             </Field>
 
-            <Field label="Last name">
+            <Field label={t("profileEdit.lastName")}>
               <input
                 value={form.last_name}
                 onChange={(e) => onChange("last_name", e.target.value)}
@@ -177,15 +171,15 @@ export default function ProfileEdit() {
               />
             </Field>
 
-            <Field label="Email">
-              <input value={form.email} style={input} disabled title="Email change disabled here" />
+            <Field label={t("profileEdit.email")}>
+              <input value={form.email} style={input} disabled title={t("profileEdit.email")} />
             </Field>
 
-            <Field label="Phone number">
+            <Field label={t("profileEdit.phone")}>
               <input
                 value={form.phone_number}
                 onChange={(e) => onChange("phone_number", e.target.value)}
-                placeholder="+48 123 456 789"
+                placeholder={t("profileEdit.placeholder.phone")}
                 style={input}
               />
             </Field>
@@ -193,19 +187,19 @@ export default function ProfileEdit() {
 
           {/* profile block */}
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 18 }}>Public profile</h3>
+            <h3 style={{ margin: 0, fontSize: 18 }}>{t("profileEdit.publicProfile")}</h3>
 
             <div style={gridTwo}>
-              <Field label="Display name">
+              <Field label={t("profileEdit.displayName")}>
                 <input
                   value={form.display_name}
                   onChange={(e) => onChange("display_name", e.target.value)}
-                  placeholder="How others will see you"
+                  placeholder={t("profileEdit.placeholder.displayName")}
                   style={input}
                 />
               </Field>
 
-              <Field label="Nickname color">
+              <Field label={t("profileEdit.nicknameColor")}>
                 <input
                   type="color"
                   value={form.nickname_color}
@@ -215,28 +209,28 @@ export default function ProfileEdit() {
               </Field>
 
               <div style={{ gridColumn: "1 / -1" }}>
-                <Field label="Bio">
+                <Field label={t("profileEdit.bio")}>
                   <textarea
                     rows={5}
                     value={form.bio}
                     onChange={(e) => onChange("bio", e.target.value)}
-                    placeholder="Tell others a bit about you…"
+                    placeholder={t("profileEdit.placeholder.bio")}
                     style={{ ...input, resize: "vertical" }}
                   />
-                  <div style={hint}>{form.bio.length} characters</div>
+                  <div style={hint}>{form.bio.length} {t("common.characters")}</div>
                 </Field>
               </div>
 
               <div style={{ gridColumn: "1 / -1" }}>
-                <Field label="About me (private account field)">
+                <Field label={t("profileEdit.aboutPrivate")}>
                   <textarea
                     rows={4}
                     value={form.description}
                     onChange={(e) => onChange("description", e.target.value)}
-                    placeholder="Internal description on your account"
+                    placeholder={t("profileEdit.placeholder.description")}
                     style={{ ...input, resize: "vertical" }}
                   />
-                  <div style={hint}>Saved to /api/users/me/update</div>
+                  <div style={hint}>{t("profileEdit.internalDescHint")}</div>
                 </Field>
               </div>
             </div>
@@ -244,9 +238,9 @@ export default function ProfileEdit() {
 
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
             <button onClick={() => void save()} disabled={saving} style={btnPrimary}>
-              {saving ? "Saving…" : "Save changes"}
+              {saving ? t("common.saving") : t("common.saveChanges")}
             </button>
-            <button onClick={() => void loadMe()} style={btnGhost}>Reset</button>
+            <button onClick={() => void loadMe()} style={btnGhost}>{t("common.reset")}</button>
           </div>
         </div>
       )}
@@ -255,11 +249,14 @@ export default function ProfileEdit() {
 }
 
 function VerifiedPill({ verified, at }: { verified?: boolean; at?: string | null }) {
+  const { t } = useTranslation();
   const bg = verified ? "#e9f7ef" : "#fff5f5";
   const color = verified ? "#0f7b5f" : "#b42525";
   const border = verified ? "#bfe7d7" : "#f2c2c2";
   const dot = verified ? "#13ae85" : "#e34949";
-  const title = verified && at ? `Verified at ${new Date(at).toLocaleString()}` : "Not verified";
+  const title = verified && at
+    ? t("profileEdit.verifiedAt", { date: new Date(at).toLocaleString() })
+    : t("profileEdit.notVerifiedTitle");
 
   return (
     <span title={title} style={{
@@ -275,7 +272,7 @@ function VerifiedPill({ verified, at }: { verified?: boolean; at?: string | null
       fontWeight: 600
     }}>
       <span style={{ width: 10, height: 10, borderRadius: "50%", background: dot }} />
-      {verified ? "Email verified" : "Email not verified"}
+      {verified ? t("profileEdit.emailVerified") : t("profileEdit.emailNotVerified")}
     </span>
   );
 }
