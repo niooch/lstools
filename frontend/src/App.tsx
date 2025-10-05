@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import About from "./pages/About"; // ← NEW
 
 import { useAuth } from "./context/AuthContext";
 
@@ -157,8 +158,8 @@ export default function App() {
         )}
       </aside>
 
-      {/* RIGHT: TOPBAR + CONTENT */}
-      <div style={{ display: "grid", gridTemplateRows: "56px 1fr" }}>
+      {/* RIGHT: TOPBAR + CONTENT + FOOTER */}
+      <div style={{ display: "grid", gridTemplateRows: "56px 1fr auto" }}>
         <header
           style={{
             display: "flex",
@@ -207,9 +208,35 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/routes/:id" element={<RouteDetails />} />
+
+            {/* NEW: About page */}
+            <Route path="/about" element={<About />} />
+
             <Route path="*" element={<div>{t("common.notFound")}</div>} />
           </Routes>
         </main>
+
+        {/* NEW: Footer with "About us" link */}
+        <footer
+          style={{
+            borderTop: "1px solid #eee",
+            padding: "12px 16px",
+            background: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <Link to="/about" style={{ color: "#0a58ca", textDecoration: "underline" }}>
+              {t("footer.aboutLink", "About us")}
+            </Link>
+          </div>
+          <span style={{ opacity: 0.6, fontSize: 12 }}>
+            © {new Date().getFullYear()}
+          </span>
+        </footer>
       </div>
     </div>
   );

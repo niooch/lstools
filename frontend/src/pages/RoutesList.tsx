@@ -8,11 +8,15 @@ import crewDouble from "../assets/crew-double.png";
 
 const ROUTES_BASE = "/api/transport/routes";
 const LOCALISATIONS_BASE = "/api/localisations";
-const USERS_BASE = "/api/users"; // list endpoint (paginated)
-const VEH_TYPES_BASE = "/api/transport/vehicle-types";
+const USERS_BASE = "/api/users/";                // list endpoint (paginated)
+const USERS_PROFILES_BASE = "/api/users/profiles";
+const VEH_TYPES_BASE = "/api/transport/vehicle-types"; // no trailing slash
 const GEO_PROXY = "/api/geo/search";
 const OSRM_BASE = import.meta.env.VITE_OSRM_URL || "http://localhost:5000";
 const ARROW = "→";
+
+// Correct app path for opening a user's profile
+const userPathById = (id: number) => `/profile/${id}`;
 
 /* ---------------- types ---------------- */
 type Localisation = {
@@ -24,7 +28,15 @@ type Localisation = {
   lon?: number | null;
 };
 
-type VehicleType = { id: number; name: string; attribute?: string | null };
+type VehicleType = {
+  id: number;
+  name: string;
+  attribute?: string | null;
+  slug?: string;
+  description?: string;
+  is_active?: boolean;
+  category?: string | null;
+};
 
 type UserPublic = {
   id: number;
@@ -138,13 +150,18 @@ async function osrmDistanceKm(from: Point, to: Point): Promise<number | null> {
   }
 }
 
+// prefer display_name -> username -> #id
 function userLabel(u?: UserPublic | null): string {
   if (!u) return "—";
-  if (u.display_name && u.display_name.trim()) return u.display_name.trim();
-  const fl = `${u.first_name || ""} ${u.last_name || ""}`.trim();
-  return fl || u.username || `#${u.id}`;
+  const dn = (u.display_name || "").trim();
+  if (dn) return dn;
+  return u.username || `#${u.id}`;
 }
 
+/**
+ * Return id and label.
+ * If we can resolve an id, we prefer pulling the label from userById[id] (which includes display_name via profiles).
+ */
 function getOwnerIdAndLabel(
   r: RouteRow,
   userById: Record<number, UserPublic>,
@@ -152,26 +169,40 @@ function getOwnerIdAndLabel(
 ): { id?: number; label: string } {
   const raw = r.owner ?? r.user ?? r.created_by;
 
+  // 1) numeric id
+  if (typeof raw === "number") {
+    const prof = userById[raw]; // <- profile-based (display_name) if fetched
+    return { id: raw, label: userLabel(prof) };
+  }
+
+  // 2) embedded object with id/username
+  if (raw && typeof raw === "object") {
+    const o = raw as UserPublic;
+    if (typeof o.id === "number") {
+      const prof = userById[o.id] || o; // prefer profile, fallback to object
+      return { id: o.id, label: userLabel(prof) };
+    }
+    if (o.username) {
+      const u = userByUsername[o.username];
+      if (u?.id) {
+        const prof = userById[u.id] || u;
+        return { id: u.id, label: userLabel(prof) };
+      }
+      return { label: userLabel(o) };
+    }
+  }
+
+  // 3) plain username string -> try map to id
   if (typeof raw === "string") {
     const uname = raw.trim();
     if (uname) {
       const u = userByUsername[uname];
-      if (u) return { id: u.id, label: userLabel(u) };
+      if (u?.id) {
+        const prof = userById[u.id] || u;
+        return { id: u.id, label: userLabel(prof) };
+      }
       return { label: uname };
     }
-    return { label: "—" };
-  }
-
-  if (typeof raw === "number") {
-    const u = userById[raw];
-    return { id: raw, label: userLabel(u) };
-  }
-
-  if (raw && typeof raw === "object") {
-    const o = raw as any;
-    const id = o.id as number | undefined;
-    const label = userLabel(o as UserPublic);
-    return { id, label };
   }
 
   return { label: "—" };
@@ -187,7 +218,7 @@ export default function RoutesList() {
   const [locById, setLocById] = useState<Record<number, Localisation>>({});
   const [vehById, setVehById] = useState<VehMap>({});
 
-  // Users: both by id and by username
+  // Users: profiles (by id) and a username→user map (from /api/users list)
   const [userById, setUserById] = useState<Record<number, UserPublic>>({});
   const [userByUsername, setUserByUsername] = useState<Record<string, UserPublic>>({});
   const allUsersLoadedRef = useRef(false);
@@ -200,89 +231,130 @@ export default function RoutesList() {
   const [distById, setDistById] = useState<Record<number, number | null | undefined>>({});
   const fetchBusyRef = useRef(false);
 
-  // Filter panel state
+  // Filter panel state (client-side only)
   const [filters, setFilters] = useState<{
-    originName: string;
-    destName: string;
-    startFrom: string; // datetime-local string
-    endUntil: string;  // datetime-local string
-    crew: "any" | "single" | "double";
-    sort: "none" | "price_asc" | "price_desc" | "ppk_asc" | "ppk_desc";
+      originName: string;
+      destName: string;
+      startFrom: string; // datetime-local string
+      endUntil: string;  // datetime-local string
+      crew: "any" | "single" | "double";
+      sort:
+          | "date_start"   // default
+              | "price_asc"
+                  | "price_desc"
+                      | "ppk_asc"
+                          | "ppk_desc";
   }>({
-    originName: "",
-    destName: "",
-    startFrom: "",
-    endUntil: "",
-    crew: "any",
-    sort: "none",
+      originName: "",
+      destName: "",
+      startFrom: "",
+      endUntil: "",
+      crew: "any",
+      sort: "date_start", // default: start date asc
   });
 
-  // Typeahead suggestions for origin/destination by name
+  // Selected IDs (locked on Apply when user chose from datalist)
+  const [originIdSel, setOriginIdSel] = useState<number | undefined>();
+  const [destIdSel, setDestIdSel] = useState<number | undefined>();
+
+  // Vehicle type checklist (client-side)
+  const [vehTypeOpts, setVehTypeOpts] = useState<VehicleType[]>([]);
+  const [vehTypeChecked, setVehTypeChecked] = useState<Record<number, boolean>>({});
+
+  // Typeahead options for origin/destination
   const [originOpts, setOriginOpts] = useState<Localisation[]>([]);
   const [destOpts, setDestOpts] = useState<Localisation[]>([]);
 
   const originOf = (r: RouteRow): Localisation | null =>
-    typeof r.origin === "number" ? locById[r.origin] ?? null : (r.origin || null);
+  typeof r.origin === "number" ? locById[r.origin] ?? null : (r.origin || null);
   const destinationOf = (r: RouteRow): Localisation | null =>
-    typeof r.destination === "number" ? locById[r.destination] ?? null : (r.destination || null);
+  typeof r.destination === "number" ? locById[r.destination] ?? null : (r.destination || null);
   const stopsCountOf = (r: RouteRow): number =>
-    typeof r.stops_count === "number" ? r.stops_count : (r.stops ? r.stops.length : 0);
+  typeof r.stops_count === "number" ? r.stops_count : (r.stops ? r.stops.length : 0);
 
-  async function loadRoutes(params?: Record<string, any>) {
-    setLoading(true);
-    setErr(null);
-    try {
-      const r = await api.get<Paged<RouteRow>>(ROUTES_BASE, { params: params || {} });
-      const list: RouteRow[] = Array.isArray(r.data) ? (r.data as any) : (r.data as any).results || [];
-      setRows(list);
+  // ---- Fetch once (no server filtering) ----
+  // replaces your current loadRoutes()
+  async function loadRoutes() {
+      setLoading(true);
+      setErr(null);
+      try {
+          const r = await api.get<Paged<RouteRow>>(ROUTES_BASE);
+          const list: RouteRow[] = Array.isArray(r.data) ? (r.data as any) : (r.data as any).results || [];
+          setRows(list);
 
-      // collect ids we need for localisations, vehicles, and usernames to resolve
-      const locIds = new Set<number>();
-      const vehIds = new Set<number>();
-      const userNamesNeeded = new Set<string>();
+          const locIds = new Set<number>();
+          const vehIds = new Set<number>();
+          const userIds = new Set<number>();      // ids to fetch profiles for
+          const usernames = new Set<string>();    // usernames we need to resolve to ids
 
-      for (const rt of list) {
-        if (typeof rt.origin === "number") locIds.add(rt.origin);
-        if (typeof rt.destination === "number") locIds.add(rt.destination);
-        if (rt.stops) for (const s of rt.stops) if (typeof s === "number") locIds.add(s);
+          for (const rt of list) {
+              if (typeof rt.origin === "number") locIds.add(rt.origin);
+              if (typeof rt.destination === "number") locIds.add(rt.destination);
+              if (rt.stops) for (const s of rt.stops) if (typeof s === "number") locIds.add(s);
 
-        const vt = rt.vehicle_type;
-        if (typeof vt === "number") vehIds.add(vt);
-        else if (vt && typeof vt === "object" && (vt as any).id) vehIds.add((vt as any).id as number);
+              const vt = rt.vehicle_type;
+              if (typeof vt === "number") vehIds.add(vt);
+              else if (vt && typeof vt === "object" && (vt as any).id) vehIds.add((vt as any).id as number);
 
-        const cand = rt.owner ?? rt.user ?? rt.created_by;
-        if (typeof cand === "string" && cand.trim()) userNamesNeeded.add(cand.trim());
+              const cand = rt.owner ?? rt.user ?? rt.created_by;
+              if (typeof cand === "number") userIds.add(cand);
+              else if (cand && typeof cand === "object" && typeof (cand as any).id === "number") userIds.add((cand as any).id);
+              else if (typeof cand === "string" && cand.trim()) usernames.add(cand.trim());
+          }
+
+          // fetch localisations & vehicle types first
+          const [locMap, vehMapFromIds] = await Promise.all([
+              locIds.size ? fetchLocalisations([...locIds]) : Promise.resolve({} as Record<number, Localisation>),
+              vehIds.size ? fetchVehicleTypes([...vehIds]) : Promise.resolve({} as VehMap),
+          ]);
+          if (Object.keys(locMap).length) setLocById((prev) => ({ ...prev, ...locMap }));
+          if (Object.keys(vehMapFromIds).length) setVehById((prev) => ({ ...prev, ...vehMapFromIds }));
+
+          // --- IMPORTANT FIX STARTS HERE ---
+          // Build local maps we can use synchronously in this call
+          let localUserById: Record<number, UserPublic> = { ...userById };
+          let localUserByUsername: Record<string, UserPublic> = { ...userByUsername };
+
+          // Load ALL users once (paginated) to populate username -> id
+          if (!allUsersLoadedRef.current) {
+              const { byId, byUsername } = await fetchAllUsers();
+              allUsersLoadedRef.current = true;
+
+              // Merge into local maps FIRST (so we can use them right away)
+              localUserById = { ...localUserById, ...byId };
+              localUserByUsername = { ...localUserByUsername, ...byUsername };
+
+              // Then update state (async, but our local copies already have the data)
+              if (Object.keys(byId).length) setUserById((prev) => ({ ...prev, ...byId }));
+              if (Object.keys(byUsername).length) setUserByUsername((prev) => ({ ...prev, ...byUsername }));
+          }
+
+          // Resolve usernames -> ids using the LOCAL map we just built
+          for (const uname of usernames) {
+              const u = localUserByUsername[uname];
+              if (u?.id) userIds.add(u.id);
+          }
+
+          // Fetch profiles/{id} to get display_name for all known ids
+          if (userIds.size) {
+              const profById = await fetchUserProfiles([...userIds]);
+              if (Object.keys(profById).length) {
+                  // update local map so this render can immediately use display_name
+                  localUserById = { ...localUserById, ...profById };
+                  // and update state for future renders
+                  setUserById((prev) => ({ ...prev, ...profById }));
+              }
+          }
+          // --- IMPORTANT FIX ENDS HERE ---
+      } catch (e: any) {
+          setErr(e?.response?.data?.detail || t("routesList.state.error"));
+      } finally {
+          setLoading(false);
       }
-
-      // fetch localisations & vehicle types
-      const locNeeded = [...locIds].filter((i) => !locById[i]);
-      const vehNeeded = [...vehIds].filter((i) => !vehById[i]);
-
-      const [locMap, vehMap] = await Promise.all([
-        locNeeded.length ? fetchLocalisations(locNeeded) : Promise.resolve({} as Record<number, Localisation>),
-        vehNeeded.length ? fetchVehicleTypes(vehNeeded) : Promise.resolve({} as VehMap),
-      ]);
-
-      if (Object.keys(locMap).length) setLocById((prev) => ({ ...prev, ...locMap }));
-      if (Object.keys(vehMap).length) setVehById((prev) => ({ ...prev, ...vehMap }));
-
-      // resolve owners
-      const unresolved = [...userNamesNeeded].filter((uname) => !userByUsername[uname]);
-      if (unresolved.length && !allUsersLoadedRef.current) {
-        const { byId, byUsername } = await fetchAllUsers();
-        allUsersLoadedRef.current = true;
-        if (Object.keys(byId).length) setUserById((prev) => ({ ...byId, ...prev, ...byId }));
-        if (Object.keys(byUsername).length) setUserByUsername((prev) => ({ ...byUsername, ...prev, ...byUsername }));
-      }
-    } catch (e: any) {
-      setErr(e?.response?.data?.detail || t("routesList.state.error"));
-    } finally {
-      setLoading(false);
-    }
   }
 
   useEffect(() => {
-    void loadRoutes();
+    void Promise.all([loadRoutes(), preloadAllVehicleTypes()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -309,9 +381,10 @@ export default function RoutesList() {
       setDistById(next);
       fetchBusyRef.current = false;
     });
-  }, [searchPoint, rows, locById]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchPoint, rows, locById, radiusKm]);
 
-  // ---------- typeahead search for localisations ----------
+  // ---------- typeahead for localisations ----------
   useEffect(() => {
     const tmr = setTimeout(() => {
       void (async () => {
@@ -334,20 +407,10 @@ export default function RoutesList() {
   async function onApplyFilters(e: React.FormEvent) {
     e.preventDefault();
 
-    // Resolve names → ids (prefer exact case-insensitive match from suggestions)
-    const originId = pickBestId(filters.originName, originOpts);
-    const destId = pickBestId(filters.destName, destOpts);
+    setOriginIdSel(pickBestId(filters.originName, originOpts));
+    setDestIdSel(pickBestId(filters.destName, destOpts));
 
-    // Build server params (tolerant: if backend ignores unknown keys, fine)
-    const params: Record<string, any> = {};
-    if (originId) params.origin = originId;
-    if (destId) params.destination = destId;
-
-    if (filters.startFrom) params.time_start__gte = new Date(filters.startFrom).toISOString();
-    if (filters.endUntil) params.time_end__lte = new Date(filters.endUntil).toISOString();
-    if (filters.crew !== "any") params.crew = filters.crew;
-
-    // If “near” has value, try to geocode & include origin_q/radius_km like before
+    // Geocode “near”
     if (qNear.trim()) {
       try {
         const geo = await api.get(GEO_PROXY, { params: { q: qNear.trim() } });
@@ -360,8 +423,6 @@ export default function RoutesList() {
         if (pt) {
           setSearchPoint(pt);
           setSearchLabel(geo?.data?.label || qNear.trim());
-          params.origin_q = qNear.trim();
-          params.radius_km = radiusKm;
         } else {
           setSearchPoint(null);
           setSearchLabel("");
@@ -374,8 +435,6 @@ export default function RoutesList() {
       setSearchPoint(null);
       setSearchLabel("");
     }
-
-    await loadRoutes(params);
   }
 
   function onClearFilters() {
@@ -385,57 +444,173 @@ export default function RoutesList() {
       startFrom: "",
       endUntil: "",
       crew: "any",
-      sort: "none",
+      sort: "date_start",
     });
+    setOriginIdSel(undefined);
+    setDestIdSel(undefined);
+    setVehTypeChecked({});
     setQNear("");
     setSearchPoint(null);
     setSearchLabel("");
-    void loadRoutes();
   }
 
-  // ---------- computed rows with client-side sorting ----------
+  // ---------- CLIENT-SIDE filtering + sorting ----------
   const displayedRows = useMemo(() => {
-    const arr = rows.slice();
+    const norm = (s: string) => s.normalize("NFKD").toLowerCase().trim();
 
-    const getPriceNum = (r: RouteRow) => {
-      const p = typeof r.price === "string" ? Number(r.price) : (r.price ?? NaN);
-      return Number.isFinite(p) ? (p as number) : NaN;
-    };
-    const getLenNum = (r: RouteRow) => {
-      if (r.length_km == null) return NaN;
-      return typeof r.length_km === "string" ? Number(r.length_km) : (r.length_km as number);
-    };
-    const getPPK = (r: RouteRow) => {
-      const p = getPriceNum(r);
-      const L = getLenNum(r);
-      if (!Number.isFinite(p) || !Number.isFinite(L) || L <= 0) return NaN;
-      return p / L;
+    const originNameNeedle = norm(filters.originName);
+    const destNameNeedle = norm(filters.destName);
+
+    const vehSelectedIds = new Set(
+      Object.entries(vehTypeChecked)
+        .filter(([, v]) => v)
+        .map(([k]) => Number(k))
+    );
+
+    const startFromTs = filters.startFrom ? new Date(filters.startFrom).getTime() : null;
+    const endUntilTs = filters.endUntil ? new Date(filters.endUntil).getTime() : null;
+
+    let arr = rows.filter((r) => {
+      // origin filter
+      if (originIdSel) {
+        const oid = typeof r.origin === "number" ? r.origin : (r.origin?.id ?? undefined);
+        if (oid !== originIdSel) return false;
+      } else if (originNameNeedle) {
+        const o = originOf(r);
+        const name = norm(o?.name || "");
+        if (!name.includes(originNameNeedle)) return false;
+      }
+
+      // destination filter
+      if (destIdSel) {
+        const did = typeof r.destination === "number" ? r.destination : (r.destination?.id ?? undefined);
+        if (did !== destIdSel) return false;
+      } else if (destNameNeedle) {
+        const d = destinationOf(r);
+        const name = norm(d?.name || "");
+        if (!name.includes(destNameNeedle)) return false;
+      }
+
+      // time window (inclusive)
+      const tsStart = r.time_start ? new Date(r.time_start).getTime() : null;
+      const tsEnd = r.time_end ? new Date(r.time_end).getTime() : null;
+      if (startFromTs != null && (tsStart == null || tsStart < startFromTs)) return false;
+      if (endUntilTs != null && (tsEnd == null || tsEnd > endUntilTs)) return false;
+
+      // crew
+      if (filters.crew !== "any") {
+        const c = (r.crew || "").toString().toLowerCase();
+        if (c !== filters.crew) return false;
+      }
+
+      // vehicle types
+      if (vehSelectedIds.size) {
+        const vtId =
+          typeof r.vehicle_type === "number"
+            ? r.vehicle_type
+            : (r.vehicle_type as VehicleType | null | undefined)?.id;
+        if (!vtId || !vehSelectedIds.has(vtId)) return false;
+      }
+
+      // near radius (origin point)
+      if (searchPoint) {
+        const dist = distById[r.id];
+        if (dist == null || !Number.isFinite(dist) || dist > radiusKm) return false;
+      }
+
+      return true;
+    });
+
+    // ---- sorting helpers (always secondary: start date asc, then id asc) ----
+    const ts = (r: RouteRow) => (r.time_start ? new Date(r.time_start).getTime() : Number.POSITIVE_INFINITY);
+    const idAsc = (a: RouteRow, b: RouteRow) => (a.id === b.id ? 0 : a.id < b.id ? -1 : 1);
+    const secondaries = (a: RouteRow, b: RouteRow) => {
+      const d = ts(a) - ts(b);
+      return d !== 0 ? d : idAsc(a, b);
     };
 
+    const priceNum = (r: RouteRow) => {
+      const p = typeof r.price === "string" ? Number(r.price) : (r.price as number | null | undefined);
+      return Number.isFinite(p || NaN) ? (p as number) : Number.POSITIVE_INFINITY;
+    };
+    const lenNum = (r: RouteRow) => {
+      const L = typeof r.length_km === "string" ? Number(r.length_km) : (r.length_km as number | null | undefined);
+      return Number.isFinite(L || NaN) ? (L as number) : NaN;
+    };
+    const ppk = (r: RouteRow) => {
+      const p = priceNum(r);
+      const L = lenNum(r);
+      return Number.isFinite(p) && Number.isFinite(L) && L > 0 ? p / (L as number) : Number.POSITIVE_INFINITY;
+    };
+
+    // primary sorting
     switch (filters.sort) {
+      case "date_start":
+        arr = arr.slice().sort((a, b) => {
+          const d = ts(a) - ts(b);
+          return d !== 0 ? d : idAsc(a, b);
+        });
+        break;
       case "price_asc":
-        arr.sort((a, b) => getPriceNum(a) - getPriceNum(b));
+        arr = arr.slice().sort((a, b) => {
+          const d = priceNum(a) - priceNum(b);
+          return d !== 0 ? d : secondaries(a, b);
+        });
         break;
       case "price_desc":
-        arr.sort((a, b) => getPriceNum(b) - getPriceNum(a));
+        arr = arr.slice().sort((a, b) => {
+          const d = priceNum(b) - priceNum(a);
+          return d !== 0 ? d : secondaries(a, b);
+        });
         break;
       case "ppk_asc":
-        arr.sort((a, b) => getPPK(a) - getPPK(b));
+        arr = arr.slice().sort((a, b) => {
+          const d = ppk(a) - ppk(b);
+          return d !== 0 ? d : secondaries(a, b);
+        });
         break;
       case "ppk_desc":
-        arr.sort((a, b) => getPPK(b) - getPPK(a));
+        arr = arr.slice().sort((a, b) => {
+          const d = ppk(b) - ppk(a);
+          return d !== 0 ? d : secondaries(a, b);
+        });
         break;
       default:
         break;
     }
     return arr;
-  }, [rows, filters.sort]);
+  }, [
+    rows,
+    filters.originName,
+    filters.destName,
+    originIdSel,
+    destIdSel,
+    filters.startFrom,
+    filters.endUntil,
+    filters.crew,
+    filters.sort,
+    vehTypeChecked,
+    searchPoint,
+    radiusKm,
+    distById,
+  ]);
 
   // ---------- table ----------
   const table = useMemo(() => {
     if (loading) return <div>{t("routesList.state.loading")}</div>;
     if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-    if (displayedRows.length === 0) return <div>{t("routesList.state.empty")}</div>;
+    if (displayedRows.length === 0) {
+      return (
+        <div>
+          {t("routesList.state.empty")}
+          {searchPoint ? (
+            <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+              {t("routesList.filters.using")} <em>{searchLabel}</em>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
 
     return (
       <div style={{ overflowX: "auto" }}>
@@ -481,14 +656,14 @@ export default function RoutesList() {
                 r.currency || "PLN",
               );
 
-              // vehicle type name + attribute badge
+              // vehicle type label + attribute badge
               let vehName = "—";
               let vehAttr: string | null = null;
               if (typeof r.vehicle_type === "object" && r.vehicle_type) {
                 vehName = (r.vehicle_type as any).name;
                 vehAttr = (r.vehicle_type as any).attribute || null;
               } else if (typeof r.vehicle_type === "number") {
-                const vt = vehById[r.vehicle_type];
+                const vt = vehById[r.vehicle_type] || vehTypeOpts.find((v) => v.id === r.vehicle_type);
                 vehName = vt?.name || `#${r.vehicle_type}`;
                 vehAttr = vt?.attribute || null;
               }
@@ -555,9 +730,11 @@ export default function RoutesList() {
                   <td style={td}>
                     {ownerId ? (
                       <Link
-                        to={`/users/${ownerId}`}
+                        to={userPathById(ownerId)}
                         title={t("routesList.openProfile")}
                         style={{ color: "#0a58ca", textDecoration: "underline" }}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
                         {ownerLabel}
                       </Link>
@@ -587,6 +764,8 @@ export default function RoutesList() {
                         fontSize: 13,
                       }}
                       title={t("routesList.detailsTitle")}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       {t("routesList.details")}
                     </Link>
@@ -598,8 +777,22 @@ export default function RoutesList() {
         </table>
       </div>
     );
-  }, [displayedRows, err, loading, distById, searchPoint, locById, userById, userByUsername, vehById, t]);
+  }, [
+    displayedRows,
+    err,
+    loading,
+    distById,
+    searchPoint,
+    searchLabel,
+    locById,
+    userById,
+    userByUsername,
+    vehById,
+    vehTypeOpts,
+    t,
+  ]);
 
+  // ---------- UI ----------
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -609,7 +802,7 @@ export default function RoutesList() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(240px, 280px) 1fr",
+          gridTemplateColumns: "minmax(260px, 320px) 1fr",
           gap: 16,
           alignItems: "start",
         }}
@@ -693,6 +886,41 @@ export default function RoutesList() {
               </select>
             </label>
 
+            {/* Vehicle types checklist */}
+            <fieldset style={{ border: "1px solid #eee", borderRadius: 8, padding: 8 }}>
+              <legend style={{ padding: "0 6px", fontWeight: 700 }}>{t("routesList.filters.vehicleTypes")}</legend>
+              <div style={{ display: "grid", gap: 6, maxHeight: 180, overflow: "auto", paddingRight: 4 }}>
+                {vehTypeOpts.length === 0 ? (
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>{t("routesList.state.loading")}</div>
+                ) : (
+                  vehTypeOpts.map((vt) => (
+                    <label key={vt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!vehTypeChecked[vt.id]}
+                        onChange={(e) => setVehTypeChecked((p) => ({ ...p, [vt.id]: e.target.checked }))}
+                      />
+                      <span>{vt.name}</span>
+                      {vt.attribute ? (
+                        <AttrBadge title={t("routesList.vehicle.attribute", { attr: vt.attribute.toUpperCase() })}>
+                          {vt.attribute.toUpperCase()}
+                        </AttrBadge>
+                      ) : null}
+                    </label>
+                  ))
+                )}
+              </div>
+              {Object.values(vehTypeChecked).some(Boolean) ? (
+                <button
+                  type="button"
+                  onClick={() => setVehTypeChecked({})}
+                  style={{ ...btn, marginTop: 8, background: "#f9fafb" }}
+                >
+                  {t("routesList.filters.clearVehicleTypes")}
+                </button>
+              ) : null}
+            </fieldset>
+
             <label style={lbl}>
               <span>{t("routesList.filters.sort")}</span>
               <select
@@ -700,7 +928,7 @@ export default function RoutesList() {
                 onChange={(e) => setFilters((p) => ({ ...p, sort: e.target.value as any }))}
                 style={inp}
               >
-                <option value="none">{t("routesList.filters.sortNone")}</option>
+                <option value="date_start">{t("routesList.filters.sortDateStart")}</option>
                 <option value="price_asc">{t("routesList.filters.sortPriceAsc")}</option>
                 <option value="price_desc">{t("routesList.filters.sortPriceDesc")}</option>
                 <option value="ppk_asc">{t("routesList.filters.sortPPKAsc")}</option>
@@ -724,11 +952,7 @@ export default function RoutesList() {
 
             <label style={lbl}>
               <span>{t("routesList.filters.radius")}</span>
-              <select
-                value={radiusKm}
-                onChange={(e) => setRadiusKm(parseInt(e.target.value))}
-                style={inp}
-              >
+              <select value={radiusKm} onChange={(e) => setRadiusKm(parseInt(e.target.value))} style={inp}>
                 {[50, 80, 120, 200, 300].map((k) => (
                   <option key={k} value={k}>
                     {k} {t("routesList.kmAbbr")}
@@ -800,11 +1024,44 @@ export default function RoutesList() {
           const it = r.data as VehicleType;
           if (it?.id) out[it.id] = it;
         } catch {
-          out[id] = { id, name: `#${id}`, attribute: null };
+          const cached = vehTypeOpts.find((v) => v.id === id);
+          out[id] = cached || { id, name: `#${id}`, attribute: null };
         }
       })
     );
     return out;
+  }
+
+  // Load full list for the checklist
+  async function preloadAllVehicleTypes() {
+    const all: VehicleType[] = [];
+    let url: string | null = `${VEH_TYPES_BASE}`; // exact path
+    const seen = new Set<number>();
+
+    while (url) {
+      try {
+        const r = await api.get(url);
+        const page = Array.isArray(r.data)
+          ? { results: r.data as VehicleType[], next: null as string | null }
+          : (r.data as { results?: VehicleType[]; next?: string | null });
+        (page.results || []).forEach((v) => {
+          if (!seen.has(v.id)) {
+            seen.add(v.id);
+            all.push(v);
+          }
+        });
+        url = page.next || null;
+      } catch {
+        break;
+      }
+    }
+
+    setVehTypeOpts(all);
+    setVehById((prev) => {
+      const next = { ...prev };
+      for (const v of all) next[v.id] = v;
+      return next;
+    });
   }
 
   // Fetch ALL users (paginated) and build maps by id and by username
@@ -815,12 +1072,12 @@ export default function RoutesList() {
     const byId: Record<number, UserPublic> = {};
     const byUsername: Record<string, UserPublic> = {};
 
-    let url: string | null = `${USERS_BASE}/`;
+    let url: string | null = `${USERS_BASE}`;
     while (url) {
       try {
         const r = await api.get(url);
         const page = (Array.isArray(r.data)
-          ? { results: r.data, next: null }
+          ? { results: r.data as UserPublic[], next: null as string | null }
           : (r.data as any)) as { results?: UserPublic[]; next?: string | null };
 
         const items: UserPublic[] = page.results || [];
@@ -828,7 +1085,6 @@ export default function RoutesList() {
           byId[u.id] = u;
           if (u.username) byUsername[u.username] = u;
         }
-        // absolute or relative next
         url = page.next || null;
       } catch {
         break;
@@ -837,7 +1093,30 @@ export default function RoutesList() {
     return { byId, byUsername };
   }
 
-  // Localisation typeahead: try multiple server params; fall back to empty
+  // Resolve profiles/{id} to get display_name and tie it to id
+  async function fetchUserProfiles(ids: number[]): Promise<Record<number, UserPublic>> {
+    const byId: Record<number, UserPublic> = {};
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const r = await api.get(`${USERS_PROFILES_BASE}/${id}`);
+          const p = r.data as UserPublic & { nickname_color?: string; bio?: string; route_stats?: any };
+          byId[id] = {
+            id: p.id,
+            username: p.username,
+            display_name: p.display_name,
+            first_name: undefined,
+            last_name: undefined,
+          };
+        } catch {
+          // ignore missing
+        }
+      })
+    );
+    return byId;
+  }
+
+  // Localisation typeahead: best-effort (backend may ignore)
   async function searchLocalisations(term: string): Promise<Localisation[]> {
     const tryOnce = async (params: Record<string, any>) => {
       try {
@@ -848,7 +1127,6 @@ export default function RoutesList() {
         return [];
       }
     };
-    // Try common patterns one by one
     let out = await tryOnce({ q: term });
     if (out.length) return out;
     out = await tryOnce({ name__icontains: term });
