@@ -40,8 +40,13 @@ export default function RouteNew() {
   const [originName, setOriginName] = useState("");
   const [destName, setDestName] = useState("");
   const [stopNames, setStopNames] = useState<string[]>([""]); // dynamic chain
-  const [timeStartStr, setTimeStartStr] = useState("");
-  const [timeEndStr, setTimeEndStr] = useState("");
+
+  // NEW: split date & time into separate fields
+  const [dateStart, setDateStart] = useState(""); // yyyy-MM-dd
+  const [timeStart, setTimeStart] = useState(""); // HH:mm
+  const [dateEnd, setDateEnd] = useState("");     // yyyy-MM-dd
+  const [timeEnd, setTimeEnd] = useState("");     // HH:mm
+
   const [vehName, setVehName] = useState("");
   const [crew, setCrew] = useState<Crew>("single");
   const [currency, setCurrency] = useState<"PLN" | "EUR">("PLN");
@@ -135,11 +140,16 @@ export default function RouteNew() {
       if (!destId) throw new Error(t("routeNew.errors.unknownDestination", { name: destName }));
       if (!vehId) throw new Error(t("routeNew.errors.unknownVehicle", { name: vehName }));
 
-      const format = t("routeNew.timeFormat");
-      const startISO = parseUserDateTime(timeStartStr);
-      const endISO = parseUserDateTime(timeEndStr);
-      if (!startISO) throw new Error(t("routeNew.errors.invalidStart", { format }));
-      if (!endISO) throw new Error(t("routeNew.errors.invalidEnd", { format }));
+      // NEW: combine separate date/time into ISO
+      const startISO = combineLocalDateTimeToISO(dateStart, timeStart);
+      const endISO = combineLocalDateTimeToISO(dateEnd, timeEnd);
+      if (!startISO) throw new Error(t("routeNew.errors.invalidStartDT", "Invalid start date/time"));
+      if (!endISO) throw new Error(t("routeNew.errors.invalidEndDT", "Invalid end date/time"));
+
+      // Optional sanity check: end after start
+      if (new Date(endISO).getTime() < new Date(startISO).getTime()) {
+        throw new Error(t("routeNew.errors.endBeforeStart", "End must be after start"));
+      }
 
       // stops: keep only non-empty and map
       const stopIds: number[] = stopNames
@@ -309,29 +319,50 @@ export default function RouteNew() {
             {destAddr ? <div style={{ fontSize: 12, opacity: 0.8 }}>📍 {destAddr}</div> : null}
           </div>
 
-          {/* times */}
-          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>
-                {t("routeNew.fields.timeStart", { format: t("routeNew.timeFormat") })}
-              </label>
-              <input
-                placeholder={t("routeNew.examples.timeExample")}
-                value={timeStartStr}
-                onChange={(e) => setTimeStartStr(e.target.value)}
-                required
-              />
+          {/* NEW: date & time pickers (calendar + time) */}
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.dateStart", "Start date")}</label>
+                <input
+                  type="date"
+                  value={dateStart}
+                  onChange={(e) => setDateStart(e.target.value)}
+                  required
+                />
+              </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.timeStart", "Start time")}</label>
+                <input
+                  type="time"
+                  value={timeStart}
+                  onChange={(e) => setTimeStart(e.target.value)}
+                  step={300} // 5-minute steps
+                  required
+                />
+              </div>
             </div>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>
-                {t("routeNew.fields.timeEnd", { format: t("routeNew.timeFormat") })}
-              </label>
-              <input
-                placeholder={t("routeNew.examples.timeExample")}
-                value={timeEndStr}
-                onChange={(e) => setTimeEndStr(e.target.value)}
-                required
-              />
+
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.dateEnd", "End date")}</label>
+                <input
+                  type="date"
+                  value={dateEnd}
+                  onChange={(e) => setDateEnd(e.target.value)}
+                  required
+                />
+              </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.timeEnd", "End time")}</label>
+                <input
+                  type="time"
+                  value={timeEnd}
+                  onChange={(e) => setTimeEnd(e.target.value)}
+                  step={300}
+                  required
+                />
+              </div>
             </div>
           </div>
 
@@ -444,16 +475,20 @@ function stringifyErrors(data: any): string | null {
   }
 }
 
-function parseUserDateTime(s: string): string | null {
-  // expected hh:mm DD/MM/YYYY
-  const m = s.trim().match(/^(\d{2}):(\d{2})\s+(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return null;
-  const [, hh, mm, dd, MM, yyyy] = m;
-  const h = Number(hh), mmin = Number(mm), d = Number(dd), M = Number(MM), y = Number(yyyy);
-  if (h > 23 || mmin > 59) return null;
-  const dt = new Date(y, M - 1, d, h, mmin, 0, 0);
+/**
+ * Combine local date (yyyy-MM-dd) and time (HH:mm) to an ISO string.
+ * Keeps the user's local timezone offset (so the server can interpret correctly).
+ */
+function combineLocalDateTimeToISO(dateStr: string, timeStr: string): string | null {
+  const d = (dateStr || "").trim();
+  const t = (timeStr || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !/^\d{2}:\d{2}$/.test(t)) return null;
+  const [y, m, day] = d.split("-").map(Number);
+  const [hh, mm] = t.split(":").map(Number);
+  if (hh > 23 || mm > 59) return null;
+  const dt = new Date(y, m - 1, day, hh, mm, 0, 0);
   if (isNaN(dt.getTime())) return null;
-  return dt.toISOString(); // send ISO; server handles TZ
+  return dt.toISOString();
 }
 
 async function resolveAddressFor(
