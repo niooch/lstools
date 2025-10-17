@@ -18,7 +18,7 @@ else
 fi
 docker run -d --name osrm-server \
   -p 5000:5000 \
-  -v /home/kogut/projekt/mapydysk/routing:/data \
+  -v /home/kogut/lstools/mapydane/routing:/data \
   osrm/osrm-backend \
   osrm-routed \
     --algorithm mld \

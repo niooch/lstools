@@ -18,10 +18,25 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", 'noreply@lstools.co')
 #read from djangosecretkey.txt
 SECRET_KEY = 'django-insecure-lj$l87&0g$ks7jq=ap96ml95hgspx*in1$%9u=^@hb(2sa3=ch'
 
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = [
+    "https://relaygielda.com",
+    "https://www.relaygielda.com",
+]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+ALLOWED_HOSTS = [
+        'relaygielda.com',
+        ]
 
 APPEND_SLASH = False
 
@@ -72,6 +87,7 @@ CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://localhost:5137",
         "http://127.0.0.1:5173",
+        "http://relaygielda.com",
         ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -144,7 +160,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'lstools',
         'OPTIONS': {
-            'read_default_file': '/home/kogut/projekt/backend/lstoolsApi/mariadb.cnf',
+            'read_default_file': '/home/kogut/lstools/backend/lstoolsApi/mariadb.cnf',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine='INNODB'",
         },
         'TEST': {

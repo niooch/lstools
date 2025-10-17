@@ -4,3 +4,5 @@ __pycache__*
 .cnf
 #ignore the media directory
 */media/*
+djangovenv/*
+mapydane/*

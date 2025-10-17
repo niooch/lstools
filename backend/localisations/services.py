@@ -2,7 +2,7 @@ import os
 import requests
 from decimal import Decimal, ROUND_HALF_UP
 
-NOMINATIM_BASE_URL = os.getenv("NOMINATIM_BASEURL", 'http://localhost:8080')
+NOMINATIM_BASE_URL = os.getenv("NOMINATIM_BASEURL", 'http://localhost:8088')
 Q6 = Decimal('0.000001')
 
 def _q6_str(x) -> str:
