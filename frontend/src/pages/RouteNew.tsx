@@ -1,8 +1,10 @@
+// src/pages/RouteNew.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useTranslation } from "react-i18next";
 
+/* ---------- types ---------- */
 type Localisation = {
   id: number;
   name: string;
@@ -19,13 +21,14 @@ type VehicleType = {
   description?: string | null;
   is_active?: boolean;
   category?: string | null;
-  attribute?: string | null; // single letter
+  attribute?: string | null;
 };
 
 type Crew = "single" | "double";
 
-const MAX_STOPS = 5;
+const MAX_STOPS = 8;
 
+/* ---------- component ---------- */
 export default function RouteNew() {
   const nav = useNavigate();
   const { t } = useTranslation();
@@ -36,12 +39,11 @@ export default function RouteNew() {
   const [posting, setPosting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // form state by names (we’ll map to ids on submit)
+  // form state (by readable names; we map to IDs on submit)
   const [originName, setOriginName] = useState("");
   const [destName, setDestName] = useState("");
-  const [stopNames, setStopNames] = useState<string[]>([""]); // dynamic chain
+  const [stopNames, setStopNames] = useState<string[]>([""]); // dynamic list, always keeps one trailing empty
 
-  // NEW: split date & time into separate fields
   const [dateStart, setDateStart] = useState(""); // yyyy-MM-dd
   const [timeStart, setTimeStart] = useState(""); // HH:mm
   const [dateEnd, setDateEnd] = useState("");     // yyyy-MM-dd
@@ -52,17 +54,14 @@ export default function RouteNew() {
   const [currency, setCurrency] = useState<"PLN" | "EUR">("PLN");
   const [price, setPrice] = useState<string>("");
 
-  // pretty address for origin/dest (best effort)
+  // pretty addresses (best-effort using your proxy)
   const [originAddr, setOriginAddr] = useState<string | null>(null);
   const [destAddr, setDestAddr] = useState<string | null>(null);
 
   // quick lookup maps
   const locByName = useMemo(() => {
     const m: Record<string, Localisation> = {};
-    for (const l of locs) {
-      if (!l?.name) continue;
-      m[l.name.toLowerCase()] = l;
-    }
+    for (const l of locs) if (l?.name) m[l.name.toLowerCase()] = l;
     return m;
   }, [locs]);
 
@@ -72,39 +71,40 @@ export default function RouteNew() {
     return m;
   }, [vehTypes]);
 
-  // load lists (with pagination, and with endpoint fallbacks)
+  // load dictionaries
   useEffect(() => {
     let on = true;
     async function loadAll() {
       try {
         setLoading(true);
         setErr(null);
-
-        const locsAll = await fetchAllLocalisations();
-        const vehAll = await fetchAllVehicleTypes();
-
+        const [locsAll, vehAll] = await Promise.all([
+          fetchAllLocalisations(),
+          fetchAllVehicleTypes(),
+        ]);
         if (!on) return;
         setLocs(locsAll);
         setVehTypes(vehAll);
       } catch (e: any) {
         if (!on) return;
-        setErr(e?.response?.data?.detail || t("routeNew.errors.loadDicts"));
+        setErr(e?.response?.data?.detail || "Failed to load dictionaries.");
       } finally {
         if (on) setLoading(false);
       }
     }
     loadAll();
     return () => { on = false; };
-  }, [t]);
+  }, []);
 
-  // dynamic stops: ensure a trailing empty input until we hit MAX
+  // keep a single trailing empty stop input, up to MAX_STOPS
   useEffect(() => {
-    const trimmed = stopNames.map(s => s.trim());
+    const trimmed = stopNames.map((s) => s.trim());
     const last = trimmed[trimmed.length - 1] ?? "";
     if (trimmed.length < MAX_STOPS && last.length > 0) {
-      setStopNames(prev => [...prev, ""]);
+      setStopNames((prev) => [...prev, ""]);
+      return;
     }
-    // also, if there are trailing empties >1, squash to a single empty
+    // collapse extra trailing empties to just one
     if (trimmed.length > 1) {
       let i = trimmed.length - 1;
       let empties = 0;
@@ -117,94 +117,100 @@ export default function RouteNew() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopNames.join("|")]);
 
-  // fetch pretty address for a selected localisation (best effort)
-  useEffect(() => {
-    void resolveAddressFor(originName, setOriginAddr, locByName);
-  }, [originName, locByName]);
-  useEffect(() => {
-    void resolveAddressFor(destName, setDestAddr, locByName);
-  }, [destName, locByName]);
+  // resolve pretty address for origin/destination (optional)
+  useEffect(() => { void resolveAddressFor(originName, setOriginAddr, locByName); }, [originName, locByName]);
+  useEffect(() => { void resolveAddressFor(destName, setDestAddr, locByName); }, [destName, locByName]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (posting) return;
-    setErr(null);
 
+    setErr(null);
     try {
-      // validate names → ids
       const originId = locByName[originName.trim().toLowerCase()]?.id;
       const destId = locByName[destName.trim().toLowerCase()]?.id;
-      const vehId = vehByName[vehName.trim().toLowerCase()]?.id;
-
-      if (!originId) throw new Error(t("routeNew.errors.unknownOrigin", { name: originName }));
-      if (!destId) throw new Error(t("routeNew.errors.unknownDestination", { name: destName }));
-      if (!vehId) throw new Error(t("routeNew.errors.unknownVehicle", { name: vehName }));
-
-      // NEW: combine separate date/time into ISO
-      const startISO = combineLocalDateTimeToISO(dateStart, timeStart);
-      const endISO = combineLocalDateTimeToISO(dateEnd, timeEnd);
-      if (!startISO) throw new Error(t("routeNew.errors.invalidStartDT", "Invalid start date/time"));
-      if (!endISO) throw new Error(t("routeNew.errors.invalidEndDT", "Invalid end date/time"));
-
-      // Optional sanity check: end after start
-      if (new Date(endISO).getTime() < new Date(startISO).getTime()) {
-        throw new Error(t("routeNew.errors.endBeforeStart", "End must be after start"));
+      if (!originId || !destId) {
+        throw new Error("Pick origin and destination from known localisations.");
       }
 
-      // stops: keep only non-empty and map
-      const stopIds: number[] = stopNames
-        .map(s => s.trim())
-        .filter(Boolean)
-        .slice(0, MAX_STOPS)
-        .map((name) => {
-          const id = locByName[name.toLowerCase()]?.id;
-          if (!id) throw new Error(t("routeNew.errors.unknownStop", { name }));
-          return id;
-        });
+      // map stopNames (excluding empty trailing input and excluding origin/destination if duplicated)
+      const stopIds = stopNames
+        .map((n) => n.trim())
+        .filter((n) => n.length > 0)
+        .map((n) => locByName[n.toLowerCase()]?.id)
+        .filter((id): id is number => typeof id === "number")
+        .filter((id) => id !== originId && id !== destId);
+
+      const vehId = vehByName[vehName.trim().toLowerCase()]?.id;
+      const time_start = combineLocalDateTimeToISO(dateStart, timeStart);
+      const time_end = combineLocalDateTimeToISO(dateEnd, timeEnd);
 
       const payload: any = {
         origin: originId,
         destination: destId,
-        time_start: startISO, // server expects ISO
-        time_end: endISO,
-        vehicle_type: vehId,
+        // If your backend expects 'waypoints' or objects, adapt here:
+        stops: stopIds, // <— ordered list of intermediate localisation IDs
+        vehicle_type: vehId || undefined,
         crew,
         currency,
-        price: price ? price : null,
+        price: price ? Number(price) : undefined,
+        time_start,
+        time_end,
       };
-      if (stopIds.length) payload.stop_ids = stopIds;
 
       setPosting(true);
       await api.post("/api/transport/routes", payload);
       nav("/routes");
     } catch (e: any) {
-      const msg =
-        typeof e?.message === "string"
-          ? e.message
-          : e?.response?.data?.detail || stringifyErrors(e?.response?.data) || t("routeNew.errors.create");
-      setErr(msg);
+      setErr(
+        e?.response?.data
+          ? stringifyErrors(e.response.data) || "Could not create route."
+          : e?.message || "Could not create route."
+      );
     } finally {
       setPosting(false);
     }
   }
 
-  // helpers
+  /* ---------- styles ---------- */
+  const box: React.CSSProperties = { border: "1px solid #eee", borderRadius: 12, padding: 12 };
+  const lbl: React.CSSProperties = { display: "grid", gap: 6 };
+  const inp: React.CSSProperties = { padding: 8, border: "1px solid #ccc", borderRadius: 6 };
+  const btn: React.CSSProperties = {
+    padding: "8px 12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    background: "#fff",
+    cursor: "pointer",
+  };
+  const btnPri: React.CSSProperties = { ...btn, background: "#0a7", color: "#fff", borderColor: "#0a7" };
+  const btnLink: React.CSSProperties = { ...btn, textDecoration: "none", color: "#111" };
+  const chip: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "4px 8px",
+    border: "1px solid #e5e7eb",
+    borderRadius: 999,
+    fontSize: 12,
+    background: "#fff",
+  };
+
   const allLocNames = useMemo(() => locs.map((l) => l.name).sort(), [locs]);
   const allVehNames = useMemo(() => vehTypes.map((v) => v.name).sort(), [vehTypes]);
 
-  const selectedVeh = useMemo(() => vehByName[vehName.trim().toLowerCase()], [vehByName, vehName]);
-  const selectedVehLetter = selectedVeh?.attribute?.slice(0, 1)?.toUpperCase() || null;
-
-  const moreCount = Math.max(0, allLocNames.length - 20);
-
+  /* ---------- UI ---------- */
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
-      <h2 style={{ margin: "8px 0 16px" }}>{t("routeNew.title")}</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <h2 style={{ margin: "8px 0 16px" }}>{t("routeNew.title") || "New route"}</h2>
+        <Link to="/localisations/new" style={btnLink} title="Add new localisation">
+          + Add localisation
+        </Link>
+      </div>
 
       {loading ? (
-        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-          {t("routeNew.loading")}
-        </div>
+        <div style={{ ...box }}>Loading…</div>
       ) : (
         <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
           {err && (
@@ -213,247 +219,173 @@ export default function RouteNew() {
             </div>
           )}
 
-          {/* localisation quick hint list */}
-          <div style={{ fontSize: 13, opacity: 0.75 }}>
-            {t("routeNew.knownCodes")}{" "}
-            <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
-              {allLocNames.slice(0, 20).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => {
-                    // smart paste into first empty localisation field
-                    if (!originName) setOriginName(n);
-                    else if (!stopNames.find((s) => !s.trim())) setStopNames((prev) => [...prev, n]);
-                    else {
-                      // fill first empty stop
-                      const idx = stopNames.findIndex((s) => !s.trim());
-                      if (idx >= 0) setStopNames((prev) => prev.map((s, i) => (i === idx ? n : s)));
-                      else if (!destName) setDestName(n);
-                    }
-                  }}
-                  style={{
-                    fontFamily: "monospace",
-                    border: "1px dashed #ddd",
-                    padding: "2px 6px",
-                    borderRadius: 999,
-                    background: "#fafafa",
-                    cursor: "pointer",
-                  }}
-                  title={t("common.clickToFill")}
-                >
-                  {n}
-                </button>
-              ))}
-              {moreCount > 0 && <span>{t("routeNew.andMore", { count: moreCount })}</span>}
-            </span>
-          </div>
-
-          {/* shared datalist for localisation names */}
+          {/* shared datalists */}
           <datalist id="loc-options">
             {allLocNames.map((n) => (
               <option key={n} value={n} />
             ))}
           </datalist>
-
-          {/* origin */}
-          <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.origin")}</label>
-            <input
-              list="loc-options"
-              placeholder={t("routeNew.placeholders.origin")}
-              value={originName}
-              onChange={(e) => setOriginName(e.target.value)}
-              required
-            />
-            {originAddr ? <div style={{ fontSize: 12, opacity: 0.8 }}>📍 {originAddr}</div> : null}
-          </div>
-
-          {/* stops (dynamic) */}
-          <div style={{ display: "grid", gap: 8 }}>
-            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.stops", { max: MAX_STOPS })}</label>
-            <div style={{ display: "grid", gap: 8 }}>
-              {stopNames.slice(0, MAX_STOPS).map((name, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    list="loc-options"
-                    placeholder={i === 0 ? t("routeNew.placeholders.firstStop") : t("routeNew.placeholders.stop")}
-                    value={name}
-                    onChange={(e) =>
-                      setStopNames((prev) => prev.map((s, idx) => (idx === i ? e.target.value : s)))
-                    }
-                  />
-                  {name.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStopNames((prev) => prev.filter((_, idx) => idx !== i));
-                      }}
-                      title={t("routeNew.actions.removeStop")}
-                      style={{
-                        border: "1px solid #eee",
-                        background: "#fafafa",
-                        padding: "6px 10px",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* destination */}
-          <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.destination")}</label>
-            <input
-              list="loc-options"
-              placeholder={t("routeNew.placeholders.destination")}
-              value={destName}
-              onChange={(e) => setDestName(e.target.value)}
-              required
-            />
-            {destAddr ? <div style={{ fontSize: 12, opacity: 0.8 }}>📍 {destAddr}</div> : null}
-          </div>
-
-          {/* NEW: date & time pickers (calendar + time) */}
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.dateStart", "Start date")}</label>
-                <input
-                  type="date"
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                  required
-                />
-              </div>
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.timeStart", "Start time")}</label>
-                <input
-                  type="time"
-                  value={timeStart}
-                  onChange={(e) => setTimeStart(e.target.value)}
-                  step={300} // 5-minute steps
-                  required
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.dateEnd", "End date")}</label>
-                <input
-                  type="date"
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                  required
-                />
-              </div>
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ fontWeight: 600 }}>{t("routeNew.fields.timeEnd", "End time")}</label>
-                <input
-                  type="time"
-                  value={timeEnd}
-                  onChange={(e) => setTimeEnd(e.target.value)}
-                  step={300}
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* vehicle type (by name) + attribute bubble */}
           <datalist id="veh-options">
             {allVehNames.map((n) => (
               <option key={n} value={n} />
             ))}
           </datalist>
-          <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.vehicleType")}</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+
+          {/* Origin */}
+          <section style={box}>
+            <label style={lbl}>
+              <span>{t("routeNew.origin") || "Origin"}</span>
+              <input
+                list="loc-options"
+                value={originName}
+                onChange={(e) => setOriginName(e.target.value)}
+                placeholder="Select known localisation"
+                style={inp}
+              />
+            </label>
+            {originAddr ? <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>{originAddr}</div> : null}
+          </section>
+
+          {/* Stops (restored) */}
+          <section style={{ ...box, display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>{t("routeNew.stops") || "Stops (optional)"}</strong>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>
+                {t("routeNew.upToNStops", { n: MAX_STOPS - 1 }) || `Up to ${MAX_STOPS - 1} stops`}
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              {stopNames.map((name, idx) => {
+                const lastEmpty = idx === stopNames.length - 1 && name.trim() === "";
+                const canRemove = stopNames.length > 1 && !lastEmpty;
+                return (
+                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      list="loc-options"
+                      value={name}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setStopNames((prev) => prev.map((s, i) => (i === idx ? v : s)));
+                      }}
+                      placeholder={lastEmpty ? "Add a stop…" : `Stop #${idx + 1}`}
+                      style={{ ...inp, flex: 1 }}
+                    />
+                    {canRemove ? (
+                      <button
+                        type="button"
+                        onClick={() => setStopNames((prev) => prev.filter((_, i) => i !== idx))}
+                        style={btn}
+                        title="Remove stop"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* visual summary chips (only confirmed stops) */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {stopNames
+                .map((n) => n.trim())
+                .filter((n) => n.length > 0)
+                .map((n, i) => (
+                  <span key={i} style={chip}>{n}</span>
+                ))}
+            </div>
+          </section>
+
+          {/* Destination */}
+          <section style={box}>
+            <label style={lbl}>
+              <span>{t("routeNew.destination") || "Destination"}</span>
+              <input
+                list="loc-options"
+                value={destName}
+                onChange={(e) => setDestName(e.target.value)}
+                placeholder="Select known localisation"
+                style={inp}
+              />
+            </label>
+            {destAddr ? <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>{destAddr}</div> : null}
+          </section>
+
+          {/* Vehicle */}
+          <section style={box}>
+            <label style={lbl}>
+              <span>{t("routeNew.vehicleType") || "Vehicle type"}</span>
               <input
                 list="veh-options"
-                placeholder={t("routeNew.placeholders.vehicle")}
                 value={vehName}
                 onChange={(e) => setVehName(e.target.value)}
-                required
+                placeholder="Vehicle type (optional)"
+                style={inp}
               />
-              {selectedVehLetter && (
-                <span
-                  title={t("routeNew.attributeTitle", { attr: selectedVehLetter })}
-                  style={{
-                    display: "inline-grid",
-                    placeItems: "center",
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    border: "1px solid #ddd",
-                    background: "#fff",
-                    fontWeight: 700,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {selectedVehLetter}
-                </span>
-              )}
-            </div>
-          </div>
+            </label>
+          </section>
 
-          {/* crew selector with icons */}
-          <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontWeight: 600 }}>{t("routeNew.fields.crew")}</label>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <CrewOption
-                label={t("routeNew.crew.single")}
-                icon="/icons/crew-single.png"
-                active={crew === "single"}
-                onClick={() => setCrew("single")}
-              />
-              <CrewOption
-                label={t("routeNew.crew.double")}
-                icon="/icons/crew-double.png"
-                active={crew === "double"}
-                onClick={() => setCrew("double")}
-              />
+          {/* Time & price */}
+          <section style={{ ...box, display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <label style={lbl}>
+                <span>{t("routeNew.startDate") || "Start date"}</span>
+                <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} style={inp} />
+              </label>
+              <label style={lbl}>
+                <span>{t("routeNew.startTime") || "Start time"}</span>
+                <input type="time" value={timeStart} onChange={(e) => setTimeStart(e.target.value)} style={inp} />
+              </label>
+              <label style={lbl}>
+                <span>{t("routeNew.endDate") || "End date"}</span>
+                <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} style={inp} />
+              </label>
+              <label style={lbl}>
+                <span>{t("routeNew.endTime") || "End time"}</span>
+                <input type="time" value={timeEnd} onChange={(e) => setTimeEnd(e.target.value)} style={inp} />
+              </label>
             </div>
-          </div>
 
-          {/* price & currency */}
-          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>{t("routeNew.fields.priceOptional")}</label>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                placeholder={t("routeNew.placeholders.price")}
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-              />
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={lbl}>
+                <span>{t("routeNew.price") || "Price"}</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="0.00"
+                  style={inp}
+                />
+              </label>
+              <label style={lbl}>
+                <span>{t("routeNew.currency") || "Currency"}</span>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value as any)} style={inp}>
+                  <option value="PLN">PLN</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <input type="radio" name="crew" checked={crew === "single"} onChange={() => setCrew("single")} />
+                  <span>{t("routeNew.crewSingle") || "Single crew"}</span>
+                </label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <input type="radio" name="crew" checked={crew === "double"} onChange={() => setCrew("double")} />
+                  <span>{t("routeNew.crewDouble") || "Double crew"}</span>
+                </label>
+              </div>
             </div>
-            <div style={{ display: "grid", gap: 6 }}>
-              <label style={{ fontWeight: 600 }}>{t("routeNew.fields.currency")}</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value as any)}>
-                <option value="PLN">PLN</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
-          </div>
+          </section>
 
-          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-            <button type="submit" disabled={posting} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #ddd" }}>
-              {posting ? t("routeNew.actions.creating") : t("routeNew.actions.create")}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="submit" disabled={posting} style={btnPri}>
+              {posting ? (t("common.saving") || "Saving…") : (t("routeNew.save") || "Save route")}
             </button>
-            <button
-              type="button"
-              onClick={() => nav(-1)}
-              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #eee", background: "#fafafa" }}
-            >
-              {t("common.cancel")}
+            <button type="button" onClick={() => nav("/routes")} style={btn}>
+              {t("common.cancel") || "Cancel"}
             </button>
           </div>
         </form>
@@ -475,10 +407,7 @@ function stringifyErrors(data: any): string | null {
   }
 }
 
-/**
- * Combine local date (yyyy-MM-dd) and time (HH:mm) to an ISO string.
- * Keeps the user's local timezone offset (so the server can interpret correctly).
- */
+/** Combine local date (yyyy-MM-dd) and time (HH:mm) to ISO string. */
 function combineLocalDateTimeToISO(dateStr: string, timeStr: string): string | null {
   const d = (dateStr || "").trim();
   const t = (timeStr || "").trim();
@@ -491,6 +420,7 @@ function combineLocalDateTimeToISO(dateStr: string, timeStr: string): string | n
   return dt.toISOString();
 }
 
+// Resolve pretty address using your backend Nominatim proxy (best-effort)
 async function resolveAddressFor(
   name: string,
   set: (s: string | null) => void,
@@ -504,61 +434,23 @@ async function resolveAddressFor(
     const lon = (loc.longitude ?? loc.lon) as any;
     if (lat == null || lon == null) return;
 
-    // best-effort: reuse backend nominatim proxy to avoid CORS
     const q = `${lat},${lon}`;
     const r = await api.get("/api/geo/search", { params: { q, limit: 1 } }).catch(() => null as any);
-    const arr = (r?.data as any[]) || [];
-    if (arr.length && (arr[0].display_name || arr[0].name)) {
-      set(arr[0].display_name || arr[0].name);
-    }
+    const data = r?.data;
+    const label =
+      (Array.isArray(data) ? data[0]?.display_name || data[0]?.label : data?.display_name || data?.label) || null;
+    set(label);
   } catch {
     /* ignore */
   }
 }
 
-function CrewOption({
-  label,
-  icon,
-  active,
-  onClick,
-}: {
-  label: string;
-  icon: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "6px 10px",
-        borderRadius: 10,
-        border: "1px solid " + (active ? "#4f46e5" : "#e5e7eb"),
-        background: active ? "#eef2ff" : "#fff",
-        cursor: "pointer",
-      }}
-      title={label}
-    >
-      <img src={icon} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
-      <span>{label}</span>
-      {active && (
-        <span style={{ marginLeft: 4, fontSize: 12, opacity: 0.8 }}>✓</span>
-      )}
-    </button>
-  );
-}
-
-/* ---------- data fetchers with fallback ---------- */
+/* ---------- data fetchers ---------- */
 
 async function fetchAllLocalisations(): Promise<Localisation[]> {
-  // try proper path first
   const all = await fetchAllPaginated<Localisation>("/api/localisations");
   if (all.length) return all;
-  // fallback for the typo path if needed
+  // fallback if an alternative path exists in your setup
   try {
     const alt = await fetchAllPaginated<Localisation>("/api/localistations");
     return alt;
@@ -571,9 +463,7 @@ async function fetchAllVehicleTypes(): Promise<VehicleType[]> {
   try {
     const v = await fetchAllPaginated<VehicleType>("/api/transport/vehicle-types");
     if (v.length) return v;
-  } catch {
-    // fall through
-  }
+  } catch {}
   try {
     const v2 = await fetchAllPaginated<VehicleType>("/api/vehicle-types");
     return v2;
@@ -585,24 +475,15 @@ async function fetchAllVehicleTypes(): Promise<VehicleType[]> {
 async function fetchAllPaginated<T = any>(url: string): Promise<T[]> {
   const out: T[] = [];
   let next: string | null = url;
-  // tolerate both paginated and unpaginated responses
   while (next) {
     const r = await api.get(next);
     const data = r.data;
-    if (Array.isArray(data)) {
-      out.push(...(data as T[]));
-      break;
-    }
+    if (Array.isArray(data)) { out.push(...(data as T[])); break; }
     if (data?.results && Array.isArray(data.results)) {
       out.push(...(data.results as T[]));
       next = data.next || null;
-    } else if (data) {
-      // maybe a single object?
-      out.push(data as T);
-      break;
-    } else {
-      break;
-    }
+    } else if (data) { out.push(data as T); break; }
+    else break;
   }
   return out;
 }

@@ -16,7 +16,8 @@ import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import About from "./pages/About"; // ← NEW
+import About from "./pages/About"; 
+import LocalisationsAdd from "./pages/LocalisationsAdd";
 
 import { useAuth } from "./context/AuthContext";
 
@@ -113,7 +114,7 @@ export default function App() {
             }}
           >
             {/* Put your logo file in /public/logo.svg */}
-            <img src="/logo.svg" alt={t("brand.logoAlt")} style={{ width: 28, height: 28 }} />
+            <img src="/logo.png" alt={t("brand.logoAlt")} style={{ width: 28, height: 28 }} />
             {!collapsed && (
               <strong style={{ color: "#111", fontSize: 16 }}>{t("brand.name")}</strong>
             )}
@@ -209,8 +210,8 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/routes/:id" element={<RouteDetails />} />
 
-            {/* NEW: About page */}
             <Route path="/about" element={<About />} />
+            <Route path="/localisations/new" element={<LocalisationsAdd />} />
 
             <Route path="*" element={<div>{t("common.notFound")}</div>} />
           </Routes>

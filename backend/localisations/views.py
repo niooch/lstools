@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, filters as drf_filters
+from rest_framework import mixins, viewsets, permissions, filters as drf_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Localisation
 from .serializers import LocalisationSerializer
@@ -10,45 +10,23 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from localisations import services as geo_svc 
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Localisations"],
-        summary="List localisations",
-        parameters=[
-            OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Search by name"),
-            OpenApiParameter("min_lat", OpenApiTypes.NUMBER, OpenApiParameter.QUERY),
-            OpenApiParameter("max_lat", OpenApiTypes.NUMBER, OpenApiParameter.QUERY),
-            OpenApiParameter("min_lon", OpenApiTypes.NUMBER, OpenApiParameter.QUERY),
-            OpenApiParameter("max_lon", OpenApiTypes.NUMBER, OpenApiParameter.QUERY),
-            OpenApiParameter("near", OpenApiTypes.STR, OpenApiParameter.QUERY, description='Bounding box near "lat,lon,r_km"'),
-            OpenApiParameter("ordering", OpenApiTypes.STR, OpenApiParameter.QUERY, description="created_at,name,latitude,longitude"),
-        ],
-    ),
-    retrieve=extend_schema(tags=["Localisations"], summary="Get a localisation"),
-)
-class LocalisationViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [AllowAny]
+class LocalisationViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     serializer_class = LocalisationSerializer
-    queryset = Localisation.objects.all()
-    filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ["name"]
-    ordering_fields = ["id", "name"]
-    ordering = ["name"]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        # Only the requesting user's localisations
+        return Localisation.objects.filter(created_by=self.request.user).order_by("-created_at")
 
-        # Bulk filters: ?ids=1,2  or  ?id__in=1,2
-        raw = self.request.query_params.get("ids") or self.request.query_params.get("id__in")
-        if raw:
-            try:
-                id_list = [int(x) for x in raw.split(",") if x.strip().isdigit()]
-                if id_list:
-                    qs = qs.filter(id__in=id_list)
-            except ValueError:
-                pass
-        return qs
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 @api_view(["GET"])
 @permission_classes([AllowAny])

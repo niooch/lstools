@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Localisation
+from rest_framework.validators import UniqueTogetherValidator
 
 class LocalisationSerializer(serializers.ModelSerializer):
     created_by = serializers.StringRelatedField(read_only=True)
@@ -19,4 +20,11 @@ class LocalisationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = fields
+        read_only_fields = ("id", "lat", "lon", "created_by", "created_at", "updated_at")
+        validators = [
+                UniqueTogetherValidator(
+                    queryset=Localisation.objects.all(),
+                    fields=("name", "latitude", "longitude"),
+                    message="A localisation with this name and coordinates already exists.",
+                    )
+        ]

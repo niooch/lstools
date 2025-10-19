@@ -1,6 +1,6 @@
 {
     "brand": {
-        "name": "Transports",
+        "name": "Relay Trading",
         "logoAlt": "Logo"
     },
     "nav": {
@@ -319,7 +319,10 @@
                 "radius": "Radius",
                 "using": "Using:",
                 "apply": "Apply",
-                "clear": "Clear"
+                "clear": "Clear",
+                "sortDateStart": "Start date ↑",
+                "vehicleTypes": "Vehicle type",
+                "clearVehicleTypes": "Clear vehicle types"
             }
         },
         "verify": {
@@ -366,6 +369,64 @@
                 "rejected": "REJECTED",
                 "unknown": "UNKNOWN"
             }
+        },
+
+        "common": {
+            "saving": "Saving…",
+            "cancel": "Cancel"
+        },
+        "routeNew": {
+            "title": "New route",
+            "origin": "Origin",
+            "destination": "Destination",
+            "stops": "Stops (optional)",
+            "upToNStops": "Up to {{n}} stops",
+            "vehicleType": "Vehicle type",
+            "startDate": "Start date",
+            "startTime": "Start time",
+            "endDate": "End date",
+            "endTime": "End time",
+            "price": "Price",
+            "currency": "Currency",
+            "crewSingle": "Single crew",
+            "crewDouble": "Double crew",
+            "save": "Save route",
+            "loading": "Loading…",
+            "errors": {
+                "loadDicts": "Failed to load dictionaries."
+            },
+            "placeholders": {
+                "selectKnownLocalisation": "Select known localisation",
+                "vehicleOptional": "Vehicle type (optional)"
+            },
+            "buttons": {
+                "addLocalisation": "+ Add localisation",
+                "removeStop": "Remove"
+            }
+        },
+        "localisationsAdd": {
+            "title": "Add Localisation",
+            "backToAddRoute": "← Back to Add Route",
+            "searchPlace": "Search place",
+            "searching": "Searching…",
+            "noResults": "No results.",
+            "typeAtLeast": "Type at least {{n}} characters…",
+            "selectedPlace": "Selected place",
+            "saveAsName": "Save as name",
+            "addLocalisation": "Add localisation",
+            "lat": "lat",
+            "lon": "lon",
+            "placeholders": {
+                "search": "City, address, POI…",
+                "saveName": "e.g. Warehouse A (PL/WAW)"
+            },
+            "errors": {
+                "searchFailed": "Search failed.",
+                "mustSelect": "Select a localisation first.",
+                "mustEnterName": "Please enter a name.",
+                "couldNotSave": "Could not save localisation."
+            }
         }
+
 }
 

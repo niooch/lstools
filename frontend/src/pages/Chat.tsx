@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation, Trans } from "react-i18next";
 import { api } from "../lib/api";
 import { resolveUrl } from "../lib/media";
-import { getLastId, mergeUnique } from "../lib/chat";
+import { mergeUnique } from "../lib/chat";
 
 export type ChatUser = {
   id: number;

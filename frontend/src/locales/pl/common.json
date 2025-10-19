@@ -1,6 +1,6 @@
 {
     "brand": {
-        "name": "Transports",
+        "name": "Relay Giełda",
         "logoAlt": "Logo"
     },
     "nav": {
@@ -267,7 +267,10 @@
         }
     },
     "routesList": {
-        "title": "Trasy",
+        "filters": {
+            "sortDateStart": "Data rozpoczęcia"
+        },
+        "title": "Lista ładunków",
         "state": {
             "loading": "Ładowanie…",
             "error": "Nie udało się wczytać tras.",
@@ -320,7 +323,10 @@
             "radius": "Promień",
             "using": "Użyto:",
             "apply": "Zastosuj",
-            "clear": "Wyczyść"
+            "clear": "Wyczyść",
+            "sortDateStart": "Data ↑",
+            "vehicleTypes": "Rodzaj pojazdu",
+            "clearVehicleTypes": "Wyczyść typy pojazdów"
         }
     },
     "verify": {
@@ -367,6 +373,63 @@
             "rejected": "ODRZUCONO",
             "unknown": "NIEZNANY"
         }
+    },
+    "common": {
+        "saving": "Zapisywanie…",
+        "cancel": "Anuluj"
+    },
+    "routeNew": {
+        "title": "Nowa trasa",
+        "origin": "Punkt startowy",
+        "destination": "Punkt docelowy",
+        "stops": "Przystanki (opcjonalnie)",
+        "upToNStops": "Maksymalnie {{n}} przystanków",
+        "vehicleType": "Typ pojazdu",
+        "startDate": "Data rozpoczęcia",
+        "startTime": "Godzina rozpoczęcia",
+        "endDate": "Data zakończenia",
+        "endTime": "Godzina zakończenia",
+        "price": "Cena",
+        "currency": "Waluta",
+        "crewSingle": "Jedna obsada",
+        "crewDouble": "Podwójna obsada",
+        "save": "Zapisz trasę",
+        "loading": "Ładowanie…",
+        "errors": {
+            "loadDicts": "Nie udało się wczytać słowników."
+        },
+        "placeholders": {
+            "selectKnownLocalisation": "Wybierz znaną lokalizację",
+            "vehicleOptional": "Typ pojazdu (opcjonalnie)"
+        },
+        "buttons": {
+            "addLocalisation": "+ Dodaj lokalizację",
+            "removeStop": "Usuń"
+        }
+    },
+    "localisationsAdd": {
+        "title": "Dodaj lokalizację",
+        "backToAddRoute": "← Wróć do dodawania trasy",
+        "searchPlace": "Szukaj miejsca",
+        "searching": "Wyszukiwanie…",
+        "noResults": "Brak wyników.",
+        "typeAtLeast": "Wpisz co najmniej {{n}} znaki…",
+        "selectedPlace": "Wybrane miejsce",
+        "saveAsName": "Zapisz jako nazwę",
+        "addLocalisation": "Dodaj lokalizację",
+        "lat": "szer.",
+        "lon": "dł.",
+        "placeholders": {
+            "search": "Miasto, adres, POI…",
+            "saveName": "np. Magazyn A (PL/WAW)"
+        },
+        "errors": {
+            "searchFailed": "Wyszukiwanie nie powiodło się.",
+            "mustSelect": "Najpierw wybierz lokalizację.",
+            "mustEnterName": "Wprowadź nazwę.",
+            "couldNotSave": "Nie udało się zapisać lokalizacji."
+        }
     }
+
 }
 
