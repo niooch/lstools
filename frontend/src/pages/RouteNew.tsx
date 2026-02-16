@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useTranslation } from "react-i18next";
+import type { AxiosResponse } from "axios";
 
 /* ---------- types ---------- */
 type Localisation = {
@@ -26,7 +27,7 @@ type VehicleType = {
 
 type Crew = "single" | "double";
 
-const MAX_STOPS = 8;
+const MAX_STOPS = 5;
 
 /* ---------- component ---------- */
 export default function RouteNew() {
@@ -148,8 +149,7 @@ export default function RouteNew() {
       const payload: any = {
         origin: originId,
         destination: destId,
-        // If your backend expects 'waypoints' or objects, adapt here:
-        stops: stopIds, // <— ordered list of intermediate localisation IDs
+        stop_ids: stopIds,
         vehicle_type: vehId || undefined,
         crew,
         currency,
@@ -452,7 +452,7 @@ async function fetchAllLocalisations(): Promise<Localisation[]> {
   if (all.length) return all;
   // fallback if an alternative path exists in your setup
   try {
-    const alt = await fetchAllPaginated<Localisation>("/api/localistations");
+    const alt = await fetchAllPaginated<Localisation>("/api/localisations/localisations");
     return alt;
   } catch {
     return all;
@@ -476,14 +476,23 @@ async function fetchAllPaginated<T = any>(url: string): Promise<T[]> {
   const out: T[] = [];
   let next: string | null = url;
   while (next) {
-    const r = await api.get(next);
+    const r: AxiosResponse<unknown> = await api.get(next);
     const data = r.data;
-    if (Array.isArray(data)) { out.push(...(data as T[])); break; }
-    if (data?.results && Array.isArray(data.results)) {
-      out.push(...(data.results as T[]));
-      next = data.next || null;
-    } else if (data) { out.push(data as T); break; }
-    else break;
+    if (Array.isArray(data)) {
+      out.push(...(data as T[]));
+      break;
+    }
+    if (data && typeof data === "object" && "results" in data) {
+      const page = data as { results?: T[]; next?: string | null };
+      if (Array.isArray(page.results)) out.push(...page.results);
+      next = page.next || null;
+      continue;
+    }
+    if (data) {
+      out.push(data as T);
+      break;
+    }
+    break;
   }
   return out;
 }

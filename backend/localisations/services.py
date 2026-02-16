@@ -23,7 +23,12 @@ def nominatim_search(q: str, limit: int = 10):
             "User-Agent": "LSTools/1.0"
             }
 
-    r = requests.get(f"{NOMINATIM_BASE_URL}/search", params=params, headers=headers)
+    r = requests.get(
+            f"{NOMINATIM_BASE_URL}/search",
+            params=params,
+            headers=headers,
+            timeout=8,
+            )
     r.raise_for_status()
     data = r.json()
     results = []
@@ -41,5 +46,4 @@ def nominatim_search(q: str, limit: int = 10):
             "osm_id": item.get("osm_id"),
             })
     return results
-
 

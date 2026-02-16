@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from django.db.models import Count, Sum, Avg, Q, F
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
+from django.shortcuts import get_object_or_404
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -183,10 +184,9 @@ class RouteViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_object(self):
-        obj = (
-                Route.objects
-                .select_related("origin", "destination", "vehicle_type", "owner")
-                .get(pk=self.kwargs["pk"])
+        obj = get_object_or_404(
+                Route.objects.select_related("origin", "destination", "vehicle_type", "owner"),
+                pk=self.kwargs["pk"],
                 )
         self.check_object_permissions(self.request, obj)
         return obj
@@ -311,7 +311,12 @@ class MyRouteStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        since_days = int(request.query_params.get("since_days", 30))
+        try:
+            since_days = int(request.query_params.get("since_days", 30))
+        except (TypeError, ValueError):
+            since_days = 30
+        if since_days < 0:
+            since_days = 30
         since = timezone.now() - timezone.timedelta(days=since_days)
 
         qs_all = Route.objects.filter(owner=request.user)

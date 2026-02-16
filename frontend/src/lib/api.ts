@@ -4,9 +4,9 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth"
 
 const baseURL = (import.meta.env.VITE_API_URL as string) || "";
 export const LOGIN_PATH =
-  ((import.meta.env.VITE_AUTH_LOGIN as string) || "/api/auth/jwt/create");
+  ((import.meta.env.VITE_AUTH_LOGIN as string) || "/api/auth/token/create");
 const REFRESH_PATH =
-  ((import.meta.env.VITE_AUTH_REFRESH as string) || "/api/auth/jwt/refresh");
+  ((import.meta.env.VITE_AUTH_REFRESH as string) || "/api/auth/token/refresh");
 
 // Allow marking a request as already retried once after 401
 declare module "axios" {

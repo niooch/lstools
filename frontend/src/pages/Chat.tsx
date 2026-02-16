@@ -4,24 +4,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { api } from "../lib/api";
 import { resolveUrl } from "../lib/media";
 import { mergeUnique } from "../lib/chat";
-
-export type ChatUser = {
-  id: number;
-  username: string;
-  display_name?: string;
-  nickname_color: string;
-};
-
-export type ChatMessage = {
-  id: number;
-  user: ChatUser;
-  content?: string | null;
-  image?: string | null;
-  route?: number | null;
-  route_label?: string | null;
-  created_at: string;
-  deleted_at?: string | null;
-};
+import type { ChatMessage } from "../types";
 
 const BASE = "/api/chat/messages";
 

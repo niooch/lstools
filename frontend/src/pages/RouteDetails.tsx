@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useTranslation } from "react-i18next";
+import type { AxiosResponse } from "axios";
 
 /* ---- Minimal types ---- */
 type StopDto = {
@@ -536,7 +537,7 @@ function RouteMap({
         <FitToPoints coords={poly} />
 
         {/* origin */}
-        {points[0]?.lat && points[0]?.lon && (
+        {points[0]?.lat != null && points[0]?.lon != null && (
           <Marker position={[points[0].lat!, points[0].lon!]} icon={originIcon}>
             <Popup>
               <strong>{t("routes.details.origin")}</strong>
@@ -547,7 +548,7 @@ function RouteMap({
 
         {/* stops */}
         {points.slice(1, -1).map((p, i) =>
-          p.lat && p.lon ? (
+          p.lat != null && p.lon != null ? (
             <Marker key={`stop-${p.id}-${i}`} position={[p.lat, p.lon]} icon={stopIcon}>
               <Popup>
                 <strong>{t("routes.details.stop_n", { n: i + 1 })}</strong>
@@ -558,7 +559,7 @@ function RouteMap({
         )}
 
         {/* destination */}
-        {points[points.length - 1]?.lat && points[points.length - 1]?.lon && (
+        {points[points.length - 1]?.lat != null && points[points.length - 1]?.lon != null && (
           <Marker
             position={[points[points.length - 1].lat!, points[points.length - 1].lon!]}
             icon={destIcon}
@@ -648,8 +649,9 @@ async function findOwnerByUsername(username: string): Promise<{ profile: UserPro
   let url: string | null = "/api/users/";
   let guard = 0;
   while (url && guard < 25) {
-    const resp = await api.get(url);
-    const results = (Array.isArray(resp.data) ? resp.data : resp.data.results) as UserPublic[];
+    const resp: AxiosResponse<unknown> = await api.get(url);
+    const payload = resp.data as UserPublic[] | { results?: UserPublic[]; next?: string | null };
+    const results = (Array.isArray(payload) ? payload : payload.results || []) as UserPublic[];
     const match = results.find((u) => u.username === username);
     if (match) {
       const [profile, core] = await Promise.all([
@@ -658,7 +660,7 @@ async function findOwnerByUsername(username: string): Promise<{ profile: UserPro
       ]);
       return { profile, core };
     }
-    url = (resp.data && resp.data.next) || null;
+    url = Array.isArray(payload) ? null : payload.next || null;
     guard += 1;
   }
   return { profile: null, core: null };

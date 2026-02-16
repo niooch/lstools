@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useTranslation } from "react-i18next";
+import type { AxiosResponse } from "axios";
 import crewSingle from "../assets/crew-single.png";
 import crewDouble from "../assets/crew-double.png";
 
@@ -1040,11 +1041,12 @@ export default function RoutesList() {
 
     while (url) {
       try {
-        const r = await api.get(url);
+        const r: AxiosResponse<unknown> = await api.get(url);
         const page = Array.isArray(r.data)
           ? { results: r.data as VehicleType[], next: null as string | null }
           : (r.data as { results?: VehicleType[]; next?: string | null });
-        (page.results || []).forEach((v) => {
+        const resultItems: VehicleType[] = page.results || [];
+        resultItems.forEach((v: VehicleType) => {
           if (!seen.has(v.id)) {
             seen.add(v.id);
             all.push(v);

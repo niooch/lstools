@@ -19,11 +19,13 @@ export type Route = {
 
 export type ChatMessage = {
     id: number;
-    content: string;
-    route: number | null;
+    content?: string | null;
+    image?: string | null;
+    route?: number | null;
     route_label?: string | null;
     created_at: string;
-    user: { id: number; username: string; nickname_color: string };
+    deleted_at?: string | null;
+    user: { id: number; username: string; nickname_color: string; display_name?: string };
 };
 
 export type UserProfilePublic = {
@@ -62,4 +64,3 @@ export type AuthedUser = {
   nickname_color?: string;
   is_email_verified: boolean; // <- used for showing Verify link
 };
-
