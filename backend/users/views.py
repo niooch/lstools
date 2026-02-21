@@ -18,11 +18,12 @@ from .models import VerificationDocument, VerificationStatus
 from transports.permissions import IsEmailVerifiedOrReadOnly
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from django.core.exceptions import PermissionDenied
+import logging
 
 
 
 User = get_user_model()
-
+logger = logging.getLogger(__name__)
 class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all().order_by("id")
     serializer_class = PublicUserSerializer
@@ -73,7 +74,7 @@ class RegisterView(generics.CreateAPIView):
             send_verification_email(user, request)
             verification_sent = True
         except Exception:
-            pass
+            logger.exception("Failed to send verification email for user_id=%s", user.id)
 
         refresh = RefreshToken.for_user(user)
         data = {
@@ -161,7 +162,7 @@ class ResendVerificationView(APIView):
                 send_verification_email(user, request)
             except Exception:
                 # don't leak errors; rely on logs in real prod
-                pass
+                logger.exception("Failed to resend verification email for user_id=%s", user.id)
 
         # Generic response
         return Response({"detail": "If the account exists and is unverified, an email was sent."})

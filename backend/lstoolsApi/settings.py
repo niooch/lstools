@@ -7,21 +7,47 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / 'lstoolsApi/.env')
 
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.console.EmailBackend')
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", 'noreply@lstools.co')
+SECRET_KEY="TPB2_8SNHfN5\\ZBrm,1gbs]!a"
+DEBUG=True
+ALLOWED_HOSTS= [
+        "relaygielda.com",
+        "www.relaygielda.com",
+        "95.111.254.248",
+        ]
+CORS_ALLOWED_ORIGINS = [
+        "https://relaygielda.com",
+        "https://www.relaygielda.com",
+        ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://relaygielda.com",
+    "https://www.relaygielda.com",
+    # if you use subdomains:
+    "https://*.relaygielda.com",
+]
+
+
+EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "mail.relaygielda.com"
+EMAIL_PORT = 465
+EMAIL_HOST_USER = "noreply"
+EMAIL_HOST_PASSWORD = "fh4sE7LoRYnrNl6xD5vTf50kR"
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+DEFAULT_FROM_EMAIL="noreply@relaygielda.com"
+EMAIL_TIMEOUT = 10
+
+NOMINATIM_BASEURL="https://127.0.0.1:8080"
+OSRM_BASE_URL="https://127.0.0.1:5000"
+OSRM_CACHE_TTL_SECONDS=86400
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-#read from djangosecretkey.txt
-SECRET_KEY = 'django-insecure-lj$l87&0g$ks7jq=ap96ml95hgspx*in1$%9u=^@hb(2sa3=ch'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = []
 
 APPEND_SLASH = False
 
@@ -68,11 +94,6 @@ MIDDLEWARE = [
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://localhost:5137",
-        "http://127.0.0.1:5173",
-        ]
 CORS_ALLOW_CREDENTIALS = True
 
 CACHES = {
@@ -217,8 +238,10 @@ NOMINATIM_BASE_URL = os.getenv("NOMINATIM_BASEURL", 'http://localhost:8080')
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
