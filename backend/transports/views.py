@@ -1,7 +1,8 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import VehicleType, Route, RouteStatus, RoutePhoto
 from .serializers import VehicleTypeSerializer, RouteSerializer, RoutePhotoSerializer
-from .permissions import IsOwnerOrReadOnly, IsEmailVerifiedOrReadOnly
+from .permissions import IsOwnerOrReadOnly
+from users.permissions import IsFullyVerified
 from .filters import RouteFilter
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -77,7 +78,7 @@ route_examples = [
 class VehicleTypeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = VehicleType.objects.filter(is_active=True).order_by("name")
     serializer_class = VehicleTypeSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsFullyVerified]
     filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
     search_fields = ["name", "slug", "description"]
     ordering_fields = ["name", "created_at"]
@@ -111,7 +112,7 @@ class VehicleTypeViewSet(viewsets.ReadOnlyModelViewSet):
     create=extend_schema(
         tags=["Transport"],
         summary="Create a route",
-        description="Requires email-verified user.",
+        description="Requires an email-verified user with approved verification documents.",
         examples=[
             OpenApiExample(
                 "Create route",
@@ -133,7 +134,7 @@ class VehicleTypeViewSet(viewsets.ReadOnlyModelViewSet):
 )
 class RouteViewSet(viewsets.ModelViewSet):
     serializer_class = RouteSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly, IsEmailVerifiedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated, IsFullyVerified, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
     filterset_class = RouteFilter
     search_fields = [
@@ -286,7 +287,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 class RoutePhotoViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
     queryset = RoutePhoto.objects.select_related("route", "uploaded_by")
     serializer_class = RoutePhotoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsFullyVerified]
 
     def perform_destroy(self, instance):
         user = self.request.user
@@ -308,7 +309,7 @@ class RoutePhotoViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
         description="Counts and agregates for auth users routes. Use ?since_days=30 default.",
         )
 class MyRouteStatsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsFullyVerified]
 
     def get(self, request):
         try:

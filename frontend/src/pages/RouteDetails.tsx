@@ -40,31 +40,18 @@ type VehicleType = {
   name: string;
   attribute?: string;
 };
-type UserPublic = {
-  id: number;
-  username: string;
-  email?: string | null;
-};
 type UserProfilePublic = {
   id: number;
   username: string;
   display_name?: string | null;
   nickname_color?: string | null;
   bio?: string | null;
-  phone_number?: string | null;
-  email?: string | null;
   route_stats?: {
     active: number;
     sold: number;
     cancelled: number;
     total: number;
   };
-};
-type CoreUser = {
-  id: number;
-  username: string;
-  email?: string | null;
-  phone_number?: string | null;
 };
 type Me = { id: number; username: string };
 
@@ -80,7 +67,6 @@ export default function RouteDetails() {
 
   /** seller */
   const [ownerProfile, setOwnerProfile] = useState<UserProfilePublic | null>(null);
-  const [ownerCore, setOwnerCore] = useState<CoreUser | null>(null);
 
   /** current user for owner check */
   const [me, setMe] = useState<Me | null>(null);
@@ -128,10 +114,14 @@ export default function RouteDetails() {
 
         // 3) Resolve seller: username -> id -> profile + core user (for email/phone)
         if (rt.owner) {
-          const { profile, core } = await findOwnerByUsername(rt.owner);
-          if (!on) return;
-          if (profile) setOwnerProfile(profile);
-          if (core) setOwnerCore(core);
+          try {
+            const profile = await findOwnerByUsername(rt.owner);
+            if (!on) return;
+            if (profile) setOwnerProfile(profile);
+          } catch {
+            if (!on) return;
+            setOwnerProfile(null);
+          }
         }
       } catch (e: any) {
         if (!on) return;
@@ -185,9 +175,8 @@ export default function RouteDetails() {
 
   const crewIcon = route.crew === "double" ? "/icons/crew-double.png" : "/icons/crew-single.png";
 
-  // Contact info: prefer core user fields, fall back to profile if present
-  const contactEmail = ownerCore?.email ?? (ownerProfile as any)?.email ?? null;
-  const contactPhone = ownerCore?.phone_number ?? (ownerProfile as any)?.phone_number ?? null;
+  const contactEmail = null;
+  const contactPhone = null;
 
   const isOwner = !!(me && route.owner && me.username === route.owner);
 
@@ -644,24 +633,20 @@ function formatPricePerKm(r: RouteDto) {
   return "—";
 }
 
-/** Paginate /api/users/ for username -> ID, then fetch profile + core user. */
-async function findOwnerByUsername(username: string): Promise<{ profile: UserProfilePublic | null; core: CoreUser | null }> {
-  let url: string | null = "/api/users/";
+/** Paginate public profiles to resolve username -> profile without touching admin-only endpoints. */
+async function findOwnerByUsername(username: string): Promise<UserProfilePublic | null> {
+  let url: string | null = "/api/users/profiles";
   let guard = 0;
   while (url && guard < 25) {
     const resp: AxiosResponse<unknown> = await api.get(url);
-    const payload = resp.data as UserPublic[] | { results?: UserPublic[]; next?: string | null };
-    const results = (Array.isArray(payload) ? payload : payload.results || []) as UserPublic[];
+    const payload = resp.data as UserProfilePublic[] | { results?: UserProfilePublic[]; next?: string | null };
+    const results = (Array.isArray(payload) ? payload : payload.results || []) as UserProfilePublic[];
     const match = results.find((u) => u.username === username);
     if (match) {
-      const [profile, core] = await Promise.all([
-        api.get(`/api/users/profiles/${match.id}`).then((x) => x.data as UserProfilePublic),
-        api.get(`/api/users/${match.id}`).then((x) => x.data as CoreUser).catch(() => null),
-      ]);
-      return { profile, core };
+      return match;
     }
     url = Array.isArray(payload) ? null : payload.next || null;
     guard += 1;
   }
-  return { profile: null, core: null };
+  return null;
 }

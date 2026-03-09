@@ -62,5 +62,7 @@ export type AuthedUser = {
   username: string;
   display_name?: string;
   nickname_color?: string;
-  is_email_verified: boolean; // <- used for showing Verify link
+  is_email_verified: boolean;
+  has_approved_verification: boolean;
+  is_fully_verified: boolean;
 };

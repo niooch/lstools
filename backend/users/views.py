@@ -1,23 +1,23 @@
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, permissions, generics, status
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, RegisterSerializer, MeUpdateSerializer, MeSerializer, PublicUserSerializer, VerificationDocumentSerializer, VerificationDocumentCreateSerializer
-from django.utils.http import urlsafe_base64_decode
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.encoding import force_bytes
 from django.utils import timezone
-from django.contrib.auth import get_user_model
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .tokens import email_verification_token
-from .emails import send_verification_email
-from drf_spectacular.utils import extend_schema
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, OpenApiExample
-from .models import VerificationDocument, VerificationStatus
-from transports.permissions import IsEmailVerifiedOrReadOnly
+from drf_spectacular.utils import OpenApiParameter, OpenApiExample, extend_schema
+from rest_framework import generics, permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from django.core.exceptions import PermissionDenied
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .emails import send_password_reset_email, send_verification_email
+from .models import VerificationDocument, VerificationStatus
+from .tokens import email_verification_token, password_reset_token
+from .permissions import IsEmailVerified
+from .serializers import UserSerializer, RegisterSerializer, MeUpdateSerializer, MeSerializer, PublicUserSerializer, VerificationDocumentSerializer, VerificationDocumentCreateSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 import logging
 
 
@@ -167,14 +167,95 @@ class ResendVerificationView(APIView):
         # Generic response
         return Response({"detail": "If the account exists and is unverified, an email was sent."})
 
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Request password reset",
+    description="Accepts an email address and always responds generically to avoid account enumeration.",
+    examples=[
+        OpenApiExample(
+            "Password reset request",
+            value={"email": "eve@example.com"},
+            request_only=True,
+        )
+    ],
+    request=PasswordResetRequestSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"].strip().lower()
+
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+        except User.DoesNotExist:
+            user = None
+
+        if user:
+            try:
+                send_password_reset_email(user, request)
+            except Exception:
+                logger.exception("Failed to send password reset email for user_id=%s", user.id)
+
+        return Response({"detail": "If the account exists, a password reset email was sent."})
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Confirm password reset",
+    description="Sets a new password using the uid/token pair from the password reset email.",
+    request=PasswordResetConfirmSerializer,
+    examples=[
+        OpenApiExample(
+            "Password reset confirm",
+            value={
+                "uid": urlsafe_base64_encode(force_bytes(1)),
+                "token": "set-from-email-link",
+                "new_password": "StrongPassw0rd!",
+                "confirm_password": "StrongPassw0rd!",
+            },
+            request_only=True,
+        )
+    ],
+    responses={200: OpenApiTypes.OBJECT},
+)
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        uidb64 = serializer.validated_data["uid"]
+        token = serializer.validated_data["token"]
+        password = serializer.validated_data["new_password"]
+
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid, is_active=True)
+        except Exception:
+            return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not password_reset_token.check_token(user, token):
+            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            return Response({"new_password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+
 class VerificationDocumentViewSet(viewsets.ModelViewSet):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     queryset = VerificationDocument.objects.all()
-
-    # hard-bypass global perms here; we’ll check auth ourselves
-    permission_classes = [permissions.AllowAny]
-    def get_permissions(self):
-        return [permissions.AllowAny()]
+    permission_classes = [permissions.IsAuthenticated, IsEmailVerified]
 
     def get_queryset(self):
         u = getattr(self.request, "user", None)
@@ -186,10 +267,7 @@ class VerificationDocumentViewSet(viewsets.ModelViewSet):
         return VerificationDocumentCreateSerializer if self.action == "create" else VerificationDocumentSerializer
 
     def perform_create(self, serializer):
-        u = getattr(self.request, "user", None)
-        if not u or not u.is_authenticated:
-            raise PermissionDenied("Authentication required.")
-        serializer.save(user=u)
+        serializer.save(user=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -197,4 +275,3 @@ class VerificationDocumentViewSet(viewsets.ModelViewSet):
             from rest_framework.response import Response
             return Response({"detail": "Cannot delete after review."}, status=400)
         return super().destroy(request, *args, **kwargs)
-

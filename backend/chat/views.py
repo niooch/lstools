@@ -1,19 +1,18 @@
-from rest_framework import viewsets, permissions, status as drf_status
+from rest_framework import viewsets, permissions
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters as drf_filters
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from .models import Message
 from .serializers import MessageSerializer
 from .permissions import IsSenderOrStaff
-from transports.permissions import IsEmailVerifiedOrReadOnly
+from users.permissions import IsEmailVerified
 
 from rest_framework.throttling import ScopedRateThrottle
 
 class MessageViewSet(viewsets.ModelViewSet):
     """
-    Simple site-wide feed. Read: any authenticated user. Post: email-verified.
+    Simple site-wide feed for email-verified users.
     Optional filters:
       - ?route=<id>  (show only posts attached to that route)
       - ?after_id=<id> (show newer than id, for polling)
@@ -31,11 +30,9 @@ class MessageViewSet(viewsets.ModelViewSet):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_permissions(self):
-        if self.action in ["create"]:
-            return [permissions.IsAuthenticated(), IsEmailVerifiedOrReadOnly()]
         if self.action in ["destroy"]:
-            return [permissions.IsAuthenticated(), IsSenderOrStaff()]
-        return [permissions.IsAuthenticated()]
+            return [permissions.IsAuthenticated(), IsEmailVerified(), IsSenderOrStaff()]
+        return [permissions.IsAuthenticated(), IsEmailVerified()]
     
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset().filter(deleted_at__isnull=True)
@@ -68,4 +65,3 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         instance.soft_delete()
-

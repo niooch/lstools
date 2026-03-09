@@ -3,11 +3,21 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from transports.models import Route, RouteStatus
+from users.models import VerificationDocument, VerificationStatus
 
 User = get_user_model()
 
 USERS_BASE = "/api/users/profiles"
 ROUTES_BASE = "/api/transport/routes"
+
+
+def _approve_docs(user):
+    VerificationDocument.objects.create(
+        user=user,
+        kind="company",
+        file=f"verification/{user.pk}-approved.pdf",
+        status=VerificationStatus.APPROVED,
+    )
 
 def _results(data):
     if isinstance(data, dict) and "results" in data:
@@ -89,6 +99,7 @@ def test_public_profile_route_stats_counts(auth_client, loc_warsaw, loc_wroclaw,
     target = User.objects.create_user(
             username="target", email="t@example.com", password="x", is_email_verified=True
             )
+    _approve_docs(target)
     # client as target user
     target_client = APIClient()
     target_client.force_authenticate(user=target)
@@ -151,6 +162,7 @@ def test_routes_list_filter_by_owner(auth_client, verified_user, loc_warsaw, loc
     other = User.objects.create_user(
             username="extra", email="extra@example.com", password="x", is_email_verified=True
             )
+    _approve_docs(other)
     other_client = APIClient()
     other_client.force_authenticate(user=other)
     other_route = other_client.post(
@@ -172,4 +184,3 @@ def test_routes_list_filter_by_owner(auth_client, verified_user, loc_warsaw, loc
     assert resp.status_code == 200, resp.data
     ids = {x["id"] for x in _results(resp.data)}
     assert other_route in ids and mine not in ids
-

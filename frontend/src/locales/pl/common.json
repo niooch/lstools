@@ -19,7 +19,8 @@
         "logoutTitle": "Wyloguj"
     },
     "footer": {
-        "version": "{{version}} · {{year}}"
+        "version": "{{version}} · {{year}}",
+        "aboutLink": "O nas"
     },
     "common": {
         "notFound": "404 Nie znaleziono"
@@ -149,7 +150,29 @@
         "fill_required": "Wypełnij wszystkie wymagane pola.",
         "passwords_mismatch": "Hasła nie są takie same.",
         "registration_failed": "Rejestracja nie powiodła się. Spróbuj ponownie.",
-        "network_error": "Błąd sieci. Spróbuj ponownie."
+        "network_error": "Błąd sieci. Spróbuj ponownie.",
+        "registration_success": "Konto zostało utworzone. Sprawdź skrzynkę i kliknij link weryfikacyjny.",
+        "forgot_password": "Nie pamiętasz hasła?",
+        "resend_verification": "Wyślij ponownie e-mail weryfikacyjny",
+        "resending_verification": "Wysyłanie weryfikacji…",
+        "resend_verification_hint": "Użyj pola e-mail powyżej, a wyślemy kolejną wiadomość weryfikacyjną.",
+        "resend_verification_requires_email": "Wpisz swój adres e-mail powyżej, aby ponownie wysłać weryfikację.",
+        "resend_verification_sent": "Jeśli konto istnieje i nie jest zweryfikowane, wysłano wiadomość e-mail.",
+        "resend_verification_failed": "Nie udało się ponownie wysłać wiadomości weryfikacyjnej.",
+        "password_reset_title": "Reset hasła",
+        "password_reset_description": "Wpisz swój adres e-mail, a wyślemy link do ustawienia nowego hasła.",
+        "send_reset_link": "Wyślij link resetujący",
+        "sending_reset_link": "Wysyłanie linku…",
+        "password_reset_sent": "Jeśli konto istnieje, wysłano wiadomość do resetu hasła.",
+        "password_reset_failed": "Nie udało się rozpocząć resetu hasła.",
+        "reset_password_title": "Ustaw nowe hasło",
+        "new_password": "Nowe hasło",
+        "reset_password_submit": "Zaktualizuj hasło",
+        "resetting_password": "Aktualizowanie hasła…",
+        "reset_password_success": "Hasło zostało zaktualizowane.",
+        "reset_password_failed": "Nie udało się zaktualizować hasła.",
+        "invalid_reset_link": "Ten link resetujący jest nieprawidłowy albo wygasł.",
+        "back_to_login": "Wróć do logowania"
     },
     "common": {
         "loading": "Ładowanie…"
@@ -375,8 +398,19 @@
         }
     },
     "common": {
+        "notFound": "404 Nie znaleziono",
+        "back": "Wstecz",
+        "save": "Zapisz",
         "saving": "Zapisywanie…",
-        "cancel": "Anuluj"
+        "saveChanges": "Zapisz zmiany",
+        "reset": "Resetuj",
+        "characters": "znaki",
+        "loading": "Ładowanie…",
+        "cancel": "Anuluj",
+        "clickToFill": "Kliknij, aby wypełnić",
+        "email": "E-mail",
+        "phone": "Telefon",
+        "loadFailedProfile": "Nie udało się wczytać profilu"
     },
     "routeNew": {
         "title": "Nowa trasa",
@@ -396,40 +430,92 @@
         "save": "Zapisz trasę",
         "loading": "Ładowanie…",
         "errors": {
-            "loadDicts": "Nie udało się wczytać słowników."
+            "loadDicts": "Nie udało się wczytać słowników.",
+            "pickKnownLocalisations": "Wybierz punkt startowy i docelowy z listy znanych lokalizacji.",
+            "couldNotCreate": "Nie udało się utworzyć trasy."
         },
         "placeholders": {
             "selectKnownLocalisation": "Wybierz znaną lokalizację",
-            "vehicleOptional": "Typ pojazdu (opcjonalnie)"
+            "vehicleOptional": "Typ pojazdu (opcjonalnie)",
+            "addStop": "Dodaj przystanek…",
+            "stop": "Przystanek nr {{n}}",
+            "price": "0.00"
         },
         "buttons": {
             "addLocalisation": "+ Dodaj lokalizację",
-            "removeStop": "Usuń"
+            "removeStop": "Usuń",
+            "removeStopTitle": "Usuń przystanek"
         }
     },
     "localisationsAdd": {
         "title": "Dodaj lokalizację",
-        "backToAddRoute": "← Wróć do dodawania trasy",
-        "searchPlace": "Szukaj miejsca",
-        "searching": "Wyszukiwanie…",
-        "noResults": "Brak wyników.",
-        "typeAtLeast": "Wpisz co najmniej {{n}} znaki…",
-        "selectedPlace": "Wybrane miejsce",
+        "backToAddRoute": "Wróć do dodawania trasy",
+        "search": {
+            "title": "Szukaj miejsca",
+            "description": "Najpierw użyj wyszukiwania Nominatim. Jeśli miejsce nie zostanie znalezione, wpisz współrzędne poniżej albo kliknij bezpośrednio na mapie.",
+            "label": "Wyszukiwanie miejsca",
+            "placeholder": "Miasto, adres, POI…",
+            "searching": "Wyszukiwanie…",
+            "noResults": "Brak wyników. Użyj współrzędnych poniżej jako zapasowej metody.",
+            "typeAtLeast": "Wpisz co najmniej {{n}} znaki…",
+            "selectResult": "Wybierz tę lokalizację"
+        },
+        "manual": {
+            "title": "Zapasowo: współrzędne",
+            "description": "Wpisz szerokość i długość geograficzną, jeśli wyszukiwanie nie zwraca właściwego punktu."
+        },
+        "fields": {
+            "latitude": "Szerokość geograficzna",
+            "longitude": "Długość geograficzna"
+        },
+        "short": {
+            "latitude": "szer.",
+            "longitude": "dł."
+        },
+        "currentPoint": "Aktualny punkt: {{lat}}, {{lon}}",
+        "invalidCoordinates": "Wprowadź poprawną szerokość od -90 do 90 i długość od -180 do 180.",
+        "noPoint": "Nie wybrano jeszcze punktu.",
+        "map": {
+            "instructions": "Kliknij na mapie, aby wbić pinezkę. Możesz też przeciągnąć marker, żeby precyzyjnie ustawić położenie.",
+            "selectedPoint": "Wybrany punkt"
+        },
         "saveAsName": "Zapisz jako nazwę",
-        "addLocalisation": "Dodaj lokalizację",
-        "lat": "szer.",
-        "lon": "dł.",
+        "submit": "Dodaj lokalizację",
+        "saving": "Zapisywanie…",
         "placeholders": {
-            "search": "Miasto, adres, POI…",
-            "saveName": "np. Magazyn A (PL/WAW)"
+            "saveName": "np. Magazyn A (PL/WAW)",
+            "latitude": "np. 52.229700",
+            "longitude": "np. 21.012200"
         },
         "errors": {
             "searchFailed": "Wyszukiwanie nie powiodło się.",
-            "mustSelect": "Najpierw wybierz lokalizację.",
+            "mustSelectOrEnter": "Wybierz wynik wyszukiwania albo wpisz poprawne współrzędne.",
             "mustEnterName": "Wprowadź nazwę.",
             "couldNotSave": "Nie udało się zapisać lokalizacji."
         }
+    },
+    "accessGate": {
+        "loadingAccount": "Ładowanie uprawnień konta…",
+        "email": {
+            "title": "Wymagana weryfikacja e-mail",
+            "detail": "Większość narzędzi pozostaje zablokowana, dopóki nie potwierdzisz adresu e-mail przez link z wiadomości."
+        },
+        "full": {
+            "emailDetail": "Najpierw zweryfikuj adres e-mail. Narzędzia transportowe odblokują się dopiero po weryfikacji e-maila i zatwierdzeniu dokumentów.",
+            "title": "Wymagane zatwierdzone dokumenty",
+            "detail": "Trasy i lokalizacje odblokują się dopiero, gdy administrator zatwierdzi przynajmniej jeden dokument weryfikacyjny.",
+            "action": "Otwórz dokumenty weryfikacyjne"
+        }
+    },
+    "app": {
+        "notices": {
+            "verifyEmail": "Zweryfikuj adres e-mail przez link z wiadomości. Do tego momentu większość funkcji pozostaje zablokowana.",
+            "docsPending": "Czat jest dostępny, ale trasy i lokalizacje pozostają zablokowane do czasu zatwierdzenia dokumentów weryfikacyjnych."
+        }
+    },
+    "about": {
+        "title": "O nas",
+        "body": "To jest strona O nas. Opisz tutaj produkt, misję i zespół."
     }
 
 }
-

@@ -46,8 +46,17 @@ class MeSerializer(serializers.ModelSerializer):
         fields = (
             "id", "username", "email",
             "display_name", "bio", "phone_number", "nickname_color",
+            "is_email_verified", "has_approved_verification", "is_fully_verified",
         )
-        read_only_fields = ("id", "username", "email", "nickname_color")
+        read_only_fields = (
+            "id",
+            "username",
+            "email",
+            "nickname_color",
+            "is_email_verified",
+            "has_approved_verification",
+            "is_fully_verified",
+        )
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -63,12 +72,16 @@ class UserSerializer(serializers.ModelSerializer):
                 "avatar",
                 "is_email_verified",
                 "email_verified_at",
+                "has_approved_verification",
+                "is_fully_verified",
                 )
         read_only_fields = ("id", 
                             "username", 
                             "email",
                             "is_email_verified",
-                            "email_verified_at")
+                            "email_verified_at",
+                            "has_approved_verification",
+                            "is_fully_verified")
 
 class MeUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -100,3 +113,19 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["confirm_password"]:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+        return attrs

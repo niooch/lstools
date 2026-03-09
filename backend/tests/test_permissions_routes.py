@@ -1,9 +1,19 @@
 import pytest
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from users.models import VerificationDocument, VerificationStatus
 
 BASE = "/api/transport/routes"
 User = get_user_model()
+
+
+def _approve_docs(user):
+    VerificationDocument.objects.create(
+        user=user,
+        kind="company",
+        file=f"verification/{user.pk}-approved.pdf",
+        status=VerificationStatus.APPROVED,
+    )
 
 @pytest.mark.django_db
 def test_non_owner_cannot_cancel_or_sell(api_client, auth_client, verified_user, loc_warsaw, loc_wroclaw, vt_van, now):
@@ -28,10 +38,10 @@ def test_non_owner_cannot_cancel_or_sell(api_client, auth_client, verified_user,
     other = User.objects.create_user(
         username="other", email="other@example.com", password="x", is_email_verified=True
     )
+    _approve_docs(other)
     api_client.force_authenticate(user=other)
 
     c = api_client.post(f"{BASE}/{rid}/cancel")
     s = api_client.post(f"{BASE}/{rid}/sell", {"price": "350.00"}, format="json")
     assert c.status_code == 403
     assert s.status_code == 403
-

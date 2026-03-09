@@ -16,9 +16,12 @@ import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import About from "./pages/About"; 
 import LocalisationsAdd from "./pages/LocalisationsAdd";
 
+import AccessGate from "./components/AccessGate";
 import { useAuth } from "./context/AuthContext";
 
 function UsersToProfile() {
@@ -70,7 +73,11 @@ function NavItem({
 export default function App() {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
-  const { token, logout } = useAuth();
+  const { token, user, loading, logout } = useAuth();
+  const canUseEmailVerifiedTools = !!token && !loading && !!user?.is_email_verified;
+  const canUseTransportTools = !!token && !loading && !!user?.is_fully_verified;
+  const showEmailLockNotice = !!token && !loading && !!user && !user.is_email_verified;
+  const showDocsLockNotice = !!token && !loading && !!user && user.is_email_verified && !user.is_fully_verified;
 
   return (
     <div
@@ -139,12 +146,13 @@ export default function App() {
 
         {/* NAVIGATION */}
         <nav style={{ display: "grid", gap: 6 }}>
-          <NavItem to="/routes" collapsed={collapsed} label={t("nav.routes")} />
-          <NavItem to="/routes/new" collapsed={collapsed} label={t("nav.addRoute")} />
-          <NavItem to="/my-routes" collapsed={collapsed} label={t("nav.myRoutes")} />
-          <NavItem to="/chat" collapsed={collapsed} label={t("nav.chat")} />
-          {/* Visible to everyone */}
-          <NavItem to="/verify" collapsed={collapsed} label={t("nav.verification")} />
+          {canUseTransportTools && <NavItem to="/routes" collapsed={collapsed} label={t("nav.routes")} />}
+          {canUseTransportTools && <NavItem to="/routes/new" collapsed={collapsed} label={t("nav.addRoute")} />}
+          {canUseTransportTools && <NavItem to="/my-routes" collapsed={collapsed} label={t("nav.myRoutes")} />}
+          {canUseEmailVerifiedTools && <NavItem to="/chat" collapsed={collapsed} label={t("nav.chat")} />}
+          {canUseEmailVerifiedTools && (
+            <NavItem to="/verify" collapsed={collapsed} label={t("nav.verification")} />
+          )}
           {!token && <NavItem to="/login" collapsed={collapsed} label={t("nav.login")} />}
           {!token && <NavItem to="/register" collapsed={collapsed} label={t("nav.register")} />}
           {token && (
@@ -195,23 +203,137 @@ export default function App() {
         </header>
 
         <main style={{ padding: 16 }}>
+          {showEmailLockNotice && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid #f59e0b",
+                background: "#fffbeb",
+              }}
+            >
+              {t("app.notices.verifyEmail")}
+            </div>
+          )}
+
+          {showDocsLockNotice && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid #93c5fd",
+                background: "#eff6ff",
+              }}
+            >
+              {t("app.notices.docsPending")}
+            </div>
+          )}
+
           <Routes>
-            <Route path="/" element={<RoutesList />} />
-            <Route path="/routes" element={<RoutesList />} />
-            <Route path="/routes/new" element={<RouteNew />} />
-            <Route path="/my-routes" element={<MyRoutes />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/chat/popout" element={<ChatPopup />} />
-            <Route path="/verify" element={<VerificationPage />} />
-            <Route path="/profile/:id" element={<Profile />} />
-            <Route path="/users/:id" element={<UsersToProfile />} />
-            <Route path="/profile/edit" element={<ProfileEdit />} />
+            <Route
+              path="/"
+              element={
+                <AccessGate level="full">
+                  <RoutesList />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/routes"
+              element={
+                <AccessGate level="full">
+                  <RoutesList />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/routes/new"
+              element={
+                <AccessGate level="full">
+                  <RouteNew />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/my-routes"
+              element={
+                <AccessGate level="full">
+                  <MyRoutes />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <AccessGate level="email">
+                  <Chat />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/chat/popout"
+              element={
+                <AccessGate level="email">
+                  <ChatPopup />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/verify"
+              element={
+                <AccessGate level="email">
+                  <VerificationPage />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/profile/:id"
+              element={
+                <AccessGate level="email">
+                  <Profile />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/users/:id"
+              element={
+                <AccessGate level="email">
+                  <UsersToProfile />
+                </AccessGate>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <AccessGate>
+                  <ProfileEdit />
+                </AccessGate>
+              }
+            />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/routes/:id" element={<RouteDetails />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/routes/:id"
+              element={
+                <AccessGate level="full">
+                  <RouteDetails />
+                </AccessGate>
+              }
+            />
 
             <Route path="/about" element={<About />} />
-            <Route path="/localisations/new" element={<LocalisationsAdd />} />
+            <Route
+              path="/localisations/new"
+              element={
+                <AccessGate level="full">
+                  <LocalisationsAdd />
+                </AccessGate>
+              }
+            />
 
             <Route path="*" element={<div>{t("common.notFound")}</div>} />
           </Routes>
@@ -231,7 +353,7 @@ export default function App() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <Link to="/about" style={{ color: "#0a58ca", textDecoration: "underline" }}>
-              {t("footer.aboutLink", "About us")}
+              {t("footer.aboutLink")}
             </Link>
           </div>
           <span style={{ opacity: 0.6, fontSize: 12 }}>

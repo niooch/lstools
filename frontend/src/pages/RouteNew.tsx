@@ -88,14 +88,14 @@ export default function RouteNew() {
         setVehTypes(vehAll);
       } catch (e: any) {
         if (!on) return;
-        setErr(e?.response?.data?.detail || "Failed to load dictionaries.");
+        setErr(e?.response?.data?.detail || t("routeNew.errors.loadDicts"));
       } finally {
         if (on) setLoading(false);
       }
     }
     loadAll();
     return () => { on = false; };
-  }, []);
+  }, [t]);
 
   // keep a single trailing empty stop input, up to MAX_STOPS
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function RouteNew() {
       const originId = locByName[originName.trim().toLowerCase()]?.id;
       const destId = locByName[destName.trim().toLowerCase()]?.id;
       if (!originId || !destId) {
-        throw new Error("Pick origin and destination from known localisations.");
+        throw new Error(t("routeNew.errors.pickKnownLocalisations"));
       }
 
       // map stopNames (excluding empty trailing input and excluding origin/destination if duplicated)
@@ -164,8 +164,8 @@ export default function RouteNew() {
     } catch (e: any) {
       setErr(
         e?.response?.data
-          ? stringifyErrors(e.response.data) || "Could not create route."
-          : e?.message || "Could not create route."
+          ? stringifyErrors(e.response.data) || t("routeNew.errors.couldNotCreate")
+          : e?.message || t("routeNew.errors.couldNotCreate")
       );
     } finally {
       setPosting(false);
@@ -203,14 +203,14 @@ export default function RouteNew() {
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <h2 style={{ margin: "8px 0 16px" }}>{t("routeNew.title") || "New route"}</h2>
-        <Link to="/localisations/new" style={btnLink} title="Add new localisation">
-          + Add localisation
+        <h2 style={{ margin: "8px 0 16px" }}>{t("routeNew.title")}</h2>
+        <Link to="/localisations/new" style={btnLink} title={t("routeNew.buttons.addLocalisation")}>
+          {t("routeNew.buttons.addLocalisation")}
         </Link>
       </div>
 
       {loading ? (
-        <div style={{ ...box }}>Loading…</div>
+        <div style={{ ...box }}>{t("routeNew.loading")}</div>
       ) : (
         <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
           {err && (
@@ -234,12 +234,12 @@ export default function RouteNew() {
           {/* Origin */}
           <section style={box}>
             <label style={lbl}>
-              <span>{t("routeNew.origin") || "Origin"}</span>
+              <span>{t("routeNew.origin")}</span>
               <input
                 list="loc-options"
                 value={originName}
                 onChange={(e) => setOriginName(e.target.value)}
-                placeholder="Select known localisation"
+                placeholder={t("routeNew.placeholders.selectKnownLocalisation")}
                 style={inp}
               />
             </label>
@@ -249,9 +249,9 @@ export default function RouteNew() {
           {/* Stops (restored) */}
           <section style={{ ...box, display: "grid", gap: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong>{t("routeNew.stops") || "Stops (optional)"}</strong>
+              <strong>{t("routeNew.stops")}</strong>
               <span style={{ fontSize: 12, opacity: 0.7 }}>
-                {t("routeNew.upToNStops", { n: MAX_STOPS - 1 }) || `Up to ${MAX_STOPS - 1} stops`}
+                {t("routeNew.upToNStops", { n: MAX_STOPS - 1 })}
               </span>
             </div>
 
@@ -268,7 +268,11 @@ export default function RouteNew() {
                         const v = e.target.value;
                         setStopNames((prev) => prev.map((s, i) => (i === idx ? v : s)));
                       }}
-                      placeholder={lastEmpty ? "Add a stop…" : `Stop #${idx + 1}`}
+                      placeholder={
+                        lastEmpty
+                          ? t("routeNew.placeholders.addStop")
+                          : t("routeNew.placeholders.stop", { n: idx + 1 })
+                      }
                       style={{ ...inp, flex: 1 }}
                     />
                     {canRemove ? (
@@ -276,9 +280,9 @@ export default function RouteNew() {
                         type="button"
                         onClick={() => setStopNames((prev) => prev.filter((_, i) => i !== idx))}
                         style={btn}
-                        title="Remove stop"
+                        title={t("routeNew.buttons.removeStopTitle")}
                       >
-                        Remove
+                        {t("routeNew.buttons.removeStop")}
                       </button>
                     ) : null}
                   </div>
@@ -300,12 +304,12 @@ export default function RouteNew() {
           {/* Destination */}
           <section style={box}>
             <label style={lbl}>
-              <span>{t("routeNew.destination") || "Destination"}</span>
+              <span>{t("routeNew.destination")}</span>
               <input
                 list="loc-options"
                 value={destName}
                 onChange={(e) => setDestName(e.target.value)}
-                placeholder="Select known localisation"
+                placeholder={t("routeNew.placeholders.selectKnownLocalisation")}
                 style={inp}
               />
             </label>
@@ -315,12 +319,12 @@ export default function RouteNew() {
           {/* Vehicle */}
           <section style={box}>
             <label style={lbl}>
-              <span>{t("routeNew.vehicleType") || "Vehicle type"}</span>
+              <span>{t("routeNew.vehicleType")}</span>
               <input
                 list="veh-options"
                 value={vehName}
                 onChange={(e) => setVehName(e.target.value)}
-                placeholder="Vehicle type (optional)"
+                placeholder={t("routeNew.placeholders.vehicleOptional")}
                 style={inp}
               />
             </label>
@@ -330,38 +334,38 @@ export default function RouteNew() {
           <section style={{ ...box, display: "grid", gap: 8 }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <label style={lbl}>
-                <span>{t("routeNew.startDate") || "Start date"}</span>
+                <span>{t("routeNew.startDate")}</span>
                 <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} style={inp} />
               </label>
               <label style={lbl}>
-                <span>{t("routeNew.startTime") || "Start time"}</span>
+                <span>{t("routeNew.startTime")}</span>
                 <input type="time" value={timeStart} onChange={(e) => setTimeStart(e.target.value)} style={inp} />
               </label>
               <label style={lbl}>
-                <span>{t("routeNew.endDate") || "End date"}</span>
+                <span>{t("routeNew.endDate")}</span>
                 <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} style={inp} />
               </label>
               <label style={lbl}>
-                <span>{t("routeNew.endTime") || "End time"}</span>
+                <span>{t("routeNew.endTime")}</span>
                 <input type="time" value={timeEnd} onChange={(e) => setTimeEnd(e.target.value)} style={inp} />
               </label>
             </div>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <label style={lbl}>
-                <span>{t("routeNew.price") || "Price"}</span>
+                <span>{t("routeNew.price")}</span>
                 <input
                   type="number"
                   step="0.01"
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="0.00"
+                  placeholder={t("routeNew.placeholders.price")}
                   style={inp}
                 />
               </label>
               <label style={lbl}>
-                <span>{t("routeNew.currency") || "Currency"}</span>
+                <span>{t("routeNew.currency")}</span>
                 <select value={currency} onChange={(e) => setCurrency(e.target.value as any)} style={inp}>
                   <option value="PLN">PLN</option>
                   <option value="EUR">EUR</option>
@@ -370,11 +374,11 @@ export default function RouteNew() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <input type="radio" name="crew" checked={crew === "single"} onChange={() => setCrew("single")} />
-                  <span>{t("routeNew.crewSingle") || "Single crew"}</span>
+                  <span>{t("routeNew.crewSingle")}</span>
                 </label>
                 <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <input type="radio" name="crew" checked={crew === "double"} onChange={() => setCrew("double")} />
-                  <span>{t("routeNew.crewDouble") || "Double crew"}</span>
+                  <span>{t("routeNew.crewDouble")}</span>
                 </label>
               </div>
             </div>
@@ -382,10 +386,10 @@ export default function RouteNew() {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" disabled={posting} style={btnPri}>
-              {posting ? (t("common.saving") || "Saving…") : (t("routeNew.save") || "Save route")}
+              {posting ? t("common.saving") : t("routeNew.save")}
             </button>
             <button type="button" onClick={() => nav("/routes")} style={btn}>
-              {t("common.cancel") || "Cancel"}
+              {t("common.cancel")}
             </button>
           </div>
         </form>

@@ -40,6 +40,20 @@ class User(AbstractUser):
             self.nickname_color = _default_nickname_color(seed)
         super().save(*args, **kwargs)
 
+    @property
+    def has_approved_verification(self):
+        if self.is_staff:
+            return True
+        if not self.pk:
+            return False
+        return self.verification_docs.filter(status=VerificationStatus.APPROVED).exists()
+
+    @property
+    def is_fully_verified(self):
+        if self.is_staff:
+            return True
+        return bool(self.is_email_verified and self.has_approved_verification)
+
     def __str__(self):
         return self.username or self.email
 

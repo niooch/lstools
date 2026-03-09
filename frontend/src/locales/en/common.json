@@ -19,7 +19,8 @@
         "logoutTitle": "Log out"
     },
     "footer": {
-        "version": "{{version}} · {{year}}"
+        "version": "{{version}} · {{year}}",
+        "aboutLink": "About us"
     },
     "common": {
         "notFound": "404 Not Found"
@@ -137,12 +138,34 @@
             "confirm_password": "Confirm password",
             "confirm_password_placeholder": "Repeat password",
             "create_account": "Create account",
-            "creating": "Creating…",
-            "fill_required": "Please fill all required fields.",
-            "passwords_mismatch": "Passwords do not match.",
-            "registration_failed": "Registration failed. Try again.",
-            "network_error": "Network error. Try again."
-        },
+        "creating": "Creating…",
+        "fill_required": "Please fill all required fields.",
+        "passwords_mismatch": "Passwords do not match.",
+        "registration_failed": "Registration failed. Try again.",
+        "network_error": "Network error. Try again.",
+        "registration_success": "Account created. Check your inbox for the verification link.",
+        "forgot_password": "Forgot password?",
+        "resend_verification": "Resend verification email",
+        "resending_verification": "Sending verification…",
+        "resend_verification_hint": "Use the email field above and we will send another verification email.",
+        "resend_verification_requires_email": "Enter your email address above to resend verification.",
+        "resend_verification_sent": "If the account exists and is unverified, an email was sent.",
+        "resend_verification_failed": "Could not resend the verification email.",
+        "password_reset_title": "Reset password",
+        "password_reset_description": "Enter your email address and we will send you a link to set a new password.",
+        "send_reset_link": "Send reset link",
+        "sending_reset_link": "Sending reset link…",
+        "password_reset_sent": "If the account exists, a password reset email was sent.",
+        "password_reset_failed": "Could not start the password reset flow.",
+        "reset_password_title": "Set a new password",
+        "new_password": "New password",
+        "reset_password_submit": "Update password",
+        "resetting_password": "Updating password…",
+        "reset_password_success": "Password updated successfully.",
+        "reset_password_failed": "Could not update the password.",
+        "invalid_reset_link": "This reset link is missing data or has expired.",
+        "back_to_login": "Back to login"
+    },
         "common": {
         },
         "routes": {
@@ -372,8 +395,19 @@
         },
 
         "common": {
+            "notFound": "404 Not Found",
+            "back": "Back",
+            "save": "Save",
             "saving": "Saving…",
-            "cancel": "Cancel"
+            "saveChanges": "Save changes",
+            "reset": "Reset",
+            "characters": "characters",
+            "loading": "Loading…",
+            "cancel": "Cancel",
+            "clickToFill": "Click to fill",
+            "email": "Email",
+            "phone": "Phone",
+            "loadFailedProfile": "Failed to load profile"
         },
         "routeNew": {
             "title": "New route",
@@ -393,40 +427,92 @@
             "save": "Save route",
             "loading": "Loading…",
             "errors": {
-                "loadDicts": "Failed to load dictionaries."
+                "loadDicts": "Failed to load dictionaries.",
+                "pickKnownLocalisations": "Pick origin and destination from known localisations.",
+                "couldNotCreate": "Could not create route."
             },
             "placeholders": {
                 "selectKnownLocalisation": "Select known localisation",
-                "vehicleOptional": "Vehicle type (optional)"
+                "vehicleOptional": "Vehicle type (optional)",
+                "addStop": "Add a stop…",
+                "stop": "Stop #{{n}}",
+                "price": "0.00"
             },
             "buttons": {
                 "addLocalisation": "+ Add localisation",
-                "removeStop": "Remove"
+                "removeStop": "Remove",
+                "removeStopTitle": "Remove stop"
             }
         },
         "localisationsAdd": {
             "title": "Add Localisation",
-            "backToAddRoute": "← Back to Add Route",
-            "searchPlace": "Search place",
-            "searching": "Searching…",
-            "noResults": "No results.",
-            "typeAtLeast": "Type at least {{n}} characters…",
-            "selectedPlace": "Selected place",
+            "backToAddRoute": "Back to Add Route",
+            "search": {
+                "title": "Search place",
+                "description": "Use Nominatim search first. If the place cannot be found, enter coordinates manually below or click directly on the map.",
+                "label": "Place search",
+                "placeholder": "City, address, POI…",
+                "searching": "Searching…",
+                "noResults": "No results. Use coordinates below as a fallback.",
+                "typeAtLeast": "Type at least {{n}} characters…",
+                "selectResult": "Select this localisation"
+            },
+            "manual": {
+                "title": "Backup: coordinates",
+                "description": "Enter latitude and longitude directly if search does not return the correct point."
+            },
+            "fields": {
+                "latitude": "Latitude",
+                "longitude": "Longitude"
+            },
+            "short": {
+                "latitude": "lat",
+                "longitude": "lon"
+            },
+            "currentPoint": "Current point: {{lat}}, {{lon}}",
+            "invalidCoordinates": "Enter a valid latitude between -90 and 90 and longitude between -180 and 180.",
+            "noPoint": "No point selected yet.",
+            "map": {
+                "instructions": "Click on the map to drop the pin. You can also drag the marker to fine-tune the location.",
+                "selectedPoint": "Selected point"
+            },
             "saveAsName": "Save as name",
-            "addLocalisation": "Add localisation",
-            "lat": "lat",
-            "lon": "lon",
+            "submit": "Add localisation",
+            "saving": "Saving…",
             "placeholders": {
-                "search": "City, address, POI…",
-                "saveName": "e.g. Warehouse A (PL/WAW)"
+                "saveName": "e.g. Warehouse A (PL/WAW)",
+                "latitude": "e.g. 52.229700",
+                "longitude": "e.g. 21.012200"
             },
             "errors": {
                 "searchFailed": "Search failed.",
-                "mustSelect": "Select a localisation first.",
+                "mustSelectOrEnter": "Select a search result or enter valid coordinates first.",
                 "mustEnterName": "Please enter a name.",
                 "couldNotSave": "Could not save localisation."
             }
+        },
+        "accessGate": {
+            "loadingAccount": "Loading account access…",
+            "email": {
+                "title": "Email verification required",
+                "detail": "Most tools stay locked until you confirm your email address from the verification link."
+            },
+            "full": {
+                "emailDetail": "Verify your email first. Transport tools unlock only after email verification and approved documents.",
+                "title": "Approved documents required",
+                "detail": "Routes and localisations unlock only after an admin approves at least one verification document.",
+                "action": "Open verification documents"
+            }
+        },
+        "app": {
+            "notices": {
+                "verifyEmail": "Verify your email address from the inbox link. Most features stay locked until that is done.",
+                "docsPending": "Chat is available, but routes and localisations stay locked until your verification documents are approved."
+            }
+        },
+        "about": {
+            "title": "About us",
+            "body": "This is our About page. Describe your product, mission, and team here."
         }
 
 }
-

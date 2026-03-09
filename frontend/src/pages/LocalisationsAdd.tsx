@@ -1,8 +1,8 @@
-// src/pages/LocalisationsAdd.tsx
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { MapContainer, TileLayer, Marker, Popup, AttributionControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, AttributionControl, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -17,6 +17,7 @@ L.Marker.prototype.options.icon = defaultIcon;
 
 const GEO_PROXY_TRY = ["/api/geo/search", "/api/geo/search/"];
 const LOCALISATIONS_BASE = "/api/localisations";
+const DEFAULT_CENTER: [number, number] = [52.237049, 21.017532];
 
 type GeoItem = {
   lat: number;
@@ -29,35 +30,39 @@ type GeoItem = {
 
 export default function LocalisationsAdd() {
   const nav = useNavigate();
+  const { t } = useTranslation();
 
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [searchErr, setSearchErr] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
 
   const [results, setResults] = useState<GeoItem[]>([]);
-  const [selected, setSelected] = useState<GeoItem | null>(null);
+  const [selectedSearch, setSelectedSearch] = useState<GeoItem | null>(null);
 
-  const defaultLabel = useMemo(
-    () => selected?.display_name || selected?.label || selected?.name || "",
-    [selected]
-  );
+  const [latInput, setLatInput] = useState("");
+  const [lonInput, setLonInput] = useState("");
   const [saveName, setSaveName] = useState("");
-  useEffect(() => setSaveName(defaultLabel), [defaultLabel]);
+  const [posting, setPosting] = useState(false);
 
-  // debounce
+  const manualPoint = useMemo(() => parsePoint(latInput, lonInput), [latInput, lonInput]);
+  const activePoint = selectedSearch ?? manualPoint;
+  const mapCenter: [number, number] = activePoint ? [activePoint.lat, activePoint.lon] : DEFAULT_CENTER;
+  const hasCoordinateInput = latInput.trim().length > 0 || lonInput.trim().length > 0;
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
     return () => clearTimeout(t);
   }, [q]);
 
-  // search
   useEffect(() => {
     let on = true;
+
     async function run() {
-      setErr(null);
+      setSearchErr(null);
       setResults([]);
-      setSelected(null);
+
       if (debouncedQ.length < 2) return;
 
       setBusy(true);
@@ -65,49 +70,78 @@ export default function LocalisationsAdd() {
         const found = await searchNominatimFlexible(debouncedQ, 8);
         if (!on) return;
         setResults(found);
-        if (found.length === 1) setSelected(found[0]); // auto-select single response (like your Szczecin example)
+        if (found.length === 1) {
+          selectSearchResult(found[0]);
+        }
       } catch (e: any) {
         if (!on) return;
-        setErr(e?.response?.data?.detail || "Search failed.");
+        setSearchErr(e?.response?.data?.detail || t("localisationsAdd.errors.searchFailed"));
       } finally {
         if (on) setBusy(false);
       }
     }
-    void run();
-    return () => { on = false; };
-  }, [debouncedQ]);
 
-  // save
-  const [posting, setPosting] = useState(false);
+    void run();
+    return () => {
+      on = false;
+    };
+  }, [debouncedQ, t]);
+
+  useEffect(() => {
+    if (!selectedSearch) return;
+
+    if (manualPoint && samePoint(manualPoint, selectedSearch)) return;
+
+    setSelectedSearch(null);
+  }, [latInput, lonInput, manualPoint, selectedSearch]);
+
+  function pinPoint(point: { lat: number; lon: number }, keepSearchSelection = false) {
+    if (!keepSearchSelection) {
+      setSelectedSearch(null);
+    }
+    setLatInput(point.lat.toFixed(6));
+    setLonInput(point.lon.toFixed(6));
+    setSaveErr(null);
+  }
+
+  function selectSearchResult(item: GeoItem) {
+    setSelectedSearch(item);
+    pinPoint(item, true);
+
+    const label = item.display_name || item.label || item.name || "";
+    if (label) {
+      setSaveName((prev) => (prev.trim() ? prev : label));
+    }
+  }
+
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
-    if (!selected) return setErr("Select a localisation first.");
-    if (!saveName.trim()) return setErr("Please enter a name.");
+    setSaveErr(null);
+    if (!activePoint) return setSaveErr(t("localisationsAdd.errors.mustSelectOrEnter"));
+    if (!saveName.trim()) return setSaveErr(t("localisationsAdd.errors.mustEnterName"));
 
     setPosting(true);
     try {
       await api.post(LOCALISATIONS_BASE, {
         name: saveName.trim(),
-        latitude: selected.lat,
-        longitude: selected.lon,
+        latitude: activePoint.lat,
+        longitude: activePoint.lon,
       });
       nav("/routes/new");
     } catch (e: any) {
       const d = e?.response?.data;
-      setErr(
+      setSaveErr(
         (d && typeof d === "object"
           ? Object.entries(d)
               .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
               .join("\n")
-          : null) || "Could not save localisation."
+          : null) || t("localisationsAdd.errors.couldNotSave")
       );
     } finally {
       setPosting(false);
     }
   }
 
-  // styles
   const box: React.CSSProperties = { border: "1px solid #eee", borderRadius: 12, padding: 12 };
   const lbl: React.CSSProperties = { display: "grid", gap: 6 };
   const inp: React.CSSProperties = { padding: 8, border: "1px solid #ccc", borderRadius: 6 };
@@ -120,55 +154,61 @@ export default function LocalisationsAdd() {
   };
   const btnPri: React.CSSProperties = { ...btn, background: "#0a7", color: "#fff", borderColor: "#0a7" };
 
-  const center: [number, number] = selected ? [selected.lat, selected.lon] : [52.237049, 21.017532];
-
   return (
     <div style={{ display: "grid", gap: 12, maxWidth: 920, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <h2 style={{ margin: 0 }}>Add Localisation</h2>
-        <Link to="/routes/new" style={btn} title="Back to new route">
-          ← Back to Add Route
+        <h2 style={{ margin: 0 }}>{t("localisationsAdd.title")}</h2>
+        <Link to="/routes/new" style={btn} title={t("localisationsAdd.backToAddRoute")}>
+          {t("localisationsAdd.backToAddRoute")}
         </Link>
       </div>
 
-      {/* Search */}
       <section style={box}>
-        <form onSubmit={(e) => e.preventDefault()} style={{ display: "grid", gap: 8 }}>
+        <form onSubmit={(e) => e.preventDefault()} style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <strong>{t("localisationsAdd.search.title")}</strong>
+            <div style={{ fontSize: 13, opacity: 0.75 }}>
+              {t("localisationsAdd.search.description")}
+            </div>
+          </div>
+
           <label style={lbl}>
-            <span>Search place</span>
+            <span>{t("localisationsAdd.search.label")}</span>
             <input
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="City, address, POI…"
+              placeholder={t("localisationsAdd.search.placeholder")}
               autoFocus
               style={inp}
             />
           </label>
-          {busy ? <div>Searching…</div> : null}
-          {err ? <div style={{ color: "crimson", whiteSpace: "pre-wrap" }}>{err}</div> : null}
+
+          {busy ? <div>{t("localisationsAdd.search.searching")}</div> : null}
+          {searchErr ? <div style={{ color: "crimson", whiteSpace: "pre-wrap" }}>{searchErr}</div> : null}
 
           {results.length > 0 ? (
             <div style={{ display: "grid", gap: 8 }}>
               {results.map((g, i) => {
                 const label = g.display_name || g.label || g.name || `${g.lat}, ${g.lon}`;
-                const isSel = selected && g.lat === selected.lat && g.lon === selected.lon;
+                const isSel = !!selectedSearch && samePoint(g, selectedSearch);
+
                 return (
                   <button
                     type="button"
                     key={`${g.lat}-${g.lon}-${i}`}
-                    onClick={() => setSelected(g)}
+                    onClick={() => selectSearchResult(g)}
                     style={{
                       display: "grid",
                       gap: 4,
                       padding: 8,
-                      border: "1px solid " + (isSel ? "#4f46e5" : "#eee"),
+                      border: `1px solid ${isSel ? "#4f46e5" : "#eee"}`,
                       borderRadius: 8,
                       background: isSel ? "#eef2ff" : "#fff",
                       textAlign: "left",
                       cursor: "pointer",
                     }}
-                    title="Select this localisation"
+                    title={t("localisationsAdd.search.selectResult")}
                   >
                     <div style={{ fontWeight: 600, lineHeight: 1.2 }}>{label}</div>
                     <div style={{ fontSize: 12, opacity: 0.75 }}>
@@ -180,29 +220,109 @@ export default function LocalisationsAdd() {
               })}
             </div>
           ) : debouncedQ.length >= 2 && !busy ? (
-            <div>No results.</div>
+            <div>{t("localisationsAdd.search.noResults")}</div>
           ) : (
-            <div style={{ fontSize: 12, opacity: 0.7 }}>Type at least 2 characters…</div>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>{t("localisationsAdd.search.typeAtLeast", { n: 2 })}</div>
           )}
+
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              paddingTop: 12,
+              borderTop: "1px solid #eee",
+            }}
+          >
+            <div style={{ display: "grid", gap: 4 }}>
+              <strong>{t("localisationsAdd.manual.title")}</strong>
+              <div style={{ fontSize: 13, opacity: 0.75 }}>
+                {t("localisationsAdd.manual.description")}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <label style={{ ...lbl, flex: "1 1 220px" }}>
+                <span>{t("localisationsAdd.fields.latitude")}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={latInput}
+                  onChange={(e) => setLatInput(e.target.value)}
+                  placeholder={t("localisationsAdd.placeholders.latitude")}
+                  style={inp}
+                />
+              </label>
+
+              <label style={{ ...lbl, flex: "1 1 220px" }}>
+                <span>{t("localisationsAdd.fields.longitude")}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={lonInput}
+                  onChange={(e) => setLonInput(e.target.value)}
+                  placeholder={t("localisationsAdd.placeholders.longitude")}
+                  style={inp}
+                />
+              </label>
+            </div>
+
+            {activePoint ? (
+              <div
+                style={{
+                  border: "1px solid #dbeafe",
+                  background: "#eff6ff",
+                  borderRadius: 10,
+                  padding: 10,
+                  fontSize: 14,
+                }}
+              >
+                {t("localisationsAdd.currentPoint", {
+                  lat: activePoint.lat.toFixed(6),
+                  lon: activePoint.lon.toFixed(6),
+                })}
+              </div>
+            ) : hasCoordinateInput ? (
+              <div style={{ fontSize: 13, color: "#b45309" }}>
+                {t("localisationsAdd.invalidCoordinates")}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, opacity: 0.7 }}>{t("localisationsAdd.noPoint")}</div>
+            )}
+          </div>
         </form>
       </section>
 
-      {/* Map + Save */}
       <section style={{ display: "grid", gap: 8, ...box }}>
+        <div style={{ fontSize: 13, opacity: 0.75 }}>
+          {t("localisationsAdd.map.instructions")}
+        </div>
         <div style={{ height: 360, borderRadius: 12, overflow: "hidden" }}>
-          <MapContainer center={center} zoom={selected ? 12 : 5} style={{ height: "100%", width: "100%" }} attributionControl={false}>
+          <MapContainer center={DEFAULT_CENTER} zoom={activePoint ? 12 : 5} style={{ height: "100%", width: "100%" }} attributionControl={false}>
+            <MapViewportSync center={mapCenter} zoom={activePoint ? 12 : 5} />
+            <MapPointPicker onPick={pinPoint} />
             <TileLayer
               attribution='&copy; OpenStreetMap contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <AttributionControl position="bottomright" prefix="" />
-            {selected ? (
-              <Marker position={[selected.lat, selected.lon]}>
+            {activePoint ? (
+              <Marker
+                position={[activePoint.lat, activePoint.lon]}
+                draggable
+                eventHandlers={{
+                  dragend: (e: { target: { getLatLng: () => { lat: number; lng: number } } }) => {
+                    const next = e.target.getLatLng();
+                    pinPoint({ lat: next.lat, lon: next.lng });
+                  },
+                }}
+              >
                 <Popup>
                   <div style={{ maxWidth: 220 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{defaultLabel || "Selected place"}</div>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                      {saveName.trim() || selectedSearch?.display_name || selectedSearch?.label || t("localisationsAdd.map.selectedPoint")}
+                    </div>
                     <div style={{ fontSize: 12, opacity: 0.8 }}>
-                      {selected.lat.toFixed(6)}, {selected.lon.toFixed(6)}
+                      {activePoint.lat.toFixed(6)}, {activePoint.lon.toFixed(6)}
                     </div>
                   </div>
                 </Popup>
@@ -213,35 +333,37 @@ export default function LocalisationsAdd() {
 
         <form onSubmit={onSave} style={{ display: "grid", gap: 8, marginTop: 8 }}>
           <label style={lbl}>
-            <span>Save as name</span>
+            <span>{t("localisationsAdd.saveAsName")}</span>
             <input
               type="text"
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
-              placeholder="e.g. Warehouse A (PL/WAW)"
+              placeholder={t("localisationsAdd.placeholders.saveName")}
               style={inp}
             />
           </label>
+
+          {saveErr ? <div style={{ color: "crimson", whiteSpace: "pre-wrap" }}>{saveErr}</div> : null}
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input
               type="text"
               readOnly
-              value={selected ? selected.lat.toFixed(6) : ""}
-              placeholder="lat"
+              value={activePoint ? activePoint.lat.toFixed(6) : ""}
+              placeholder={t("localisationsAdd.short.latitude")}
               style={{ ...inp, width: 140 }}
-              title="Latitude"
+              title={t("localisationsAdd.fields.latitude")}
             />
             <input
               type="text"
               readOnly
-              value={selected ? selected.lon.toFixed(6) : ""}
-              placeholder="lon"
+              value={activePoint ? activePoint.lon.toFixed(6) : ""}
+              placeholder={t("localisationsAdd.short.longitude")}
               style={{ ...inp, width: 140 }}
-              title="Longitude"
+              title={t("localisationsAdd.fields.longitude")}
             />
-            <button type="submit" disabled={!selected || posting} style={btnPri}>
-              {posting ? "Saving…" : "Add localisation"}
+            <button type="submit" disabled={!activePoint || posting} style={btnPri}>
+              {posting ? t("localisationsAdd.saving") : t("localisationsAdd.submit")}
             </button>
           </div>
         </form>
@@ -250,20 +372,79 @@ export default function LocalisationsAdd() {
   );
 }
 
-/* ---------------- helpers ---------------- */
+function MapViewportSync({
+  center,
+  zoom,
+}: {
+  center: [number, number];
+  zoom: number;
+}) {
+  const map = useMap();
 
-/** Parse many possible response shapes into a normalized GeoItem[] */
+  useEffect(() => {
+    map.setView(center, zoom, { animate: true });
+  }, [map, center, zoom]);
+
+  return null;
+}
+
+function MapPointPicker({
+  onPick,
+}: {
+  onPick: (point: { lat: number; lon: number }) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleClick = (e: { latlng: { lat: number; lng: number } }) => {
+      onPick({ lat: e.latlng.lat, lon: e.latlng.lng });
+    };
+
+    map.on("click", handleClick);
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [map, onPick]);
+
+  useEffect(() => {
+    const prevCursor = map.getContainer().style.cursor;
+    map.getContainer().style.cursor = "crosshair";
+    return () => {
+      map.getContainer().style.cursor = prevCursor;
+    };
+  }, [map]);
+
+  return null;
+}
+
+function samePoint(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+  return a.lat === b.lat && a.lon === b.lon;
+}
+
+function parsePoint(latRaw: string, lonRaw: string): GeoItem | null {
+  const lat = Number(normalizeCoordinate(latRaw));
+  const lon = Number(normalizeCoordinate(lonRaw));
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90) return null;
+  if (lon < -180 || lon > 180) return null;
+
+  return { lat, lon };
+}
+
+function normalizeCoordinate(value: string): string {
+  return value.trim().replace(/,/g, ".");
+}
+
 function normalizeToGeoItems(data: any): GeoItem[] {
   if (!data) return [];
 
-  // 1) Your sample: single object { point:{lat,lon}, label }
   if (!Array.isArray(data) && typeof data === "object") {
-    // GeoJSON?
     if (Array.isArray((data as any).features)) {
       const feats = (data as any).features as any[];
       return feats
         .map((f) => {
-          const coords = f?.geometry?.coordinates; // [lon, lat]
+          const coords = f?.geometry?.coordinates;
           const lat = Number(coords?.[1]);
           const lon = Number(coords?.[0]);
           const label = f?.properties?.display_name || f?.properties?.label || f?.properties?.name;
@@ -274,13 +455,11 @@ function normalizeToGeoItems(data: any): GeoItem[] {
         .filter(Boolean) as GeoItem[];
     }
 
-    // Wrapped list: { results: [...] }
     if (Array.isArray((data as any).results)) {
       return normalizeToGeoItems((data as any).results);
     }
 
-    // Single object with {point:{lat,lon}} and optional {label}
-    if (data.point && (data.point.lat != null) && (data.point.lon != null)) {
+    if (data.point && data.point.lat != null && data.point.lon != null) {
       const lat = Number(data.point.lat);
       const lon = Number(data.point.lon);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
@@ -288,8 +467,7 @@ function normalizeToGeoItems(data: any): GeoItem[] {
       }
     }
 
-    // Single object with top-level lat/lon
-    if ((data.lat != null) && (data.lon != null)) {
+    if (data.lat != null && data.lon != null) {
       const lat = Number(data.lat);
       const lon = Number(data.lon);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
@@ -298,11 +476,9 @@ function normalizeToGeoItems(data: any): GeoItem[] {
     }
   }
 
-  // 2) Array of raw items
   if (Array.isArray(data)) {
     return (data as any[])
       .map((it) => {
-        // allow {point:{lat,lon}} or {lat,lon}
         const lat = it?.point ? Number(it.point.lat) : Number(it.lat ?? it.latitude);
         const lon = it?.point ? Number(it.point.lon) : Number(it.lon ?? it.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
@@ -323,7 +499,7 @@ async function searchNominatimFlexible(q: string, limit = 8): Promise<GeoItem[]>
       const norm = normalizeToGeoItems(r.data);
       if (norm.length) return norm;
     } catch {
-      // try next variant
+      // try next endpoint variant
     }
   }
   return [];

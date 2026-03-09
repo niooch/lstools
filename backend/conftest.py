@@ -5,6 +5,7 @@ from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from localisations.models import Localisation
 from transports.models import VehicleType
+from users.models import VerificationDocument, VerificationStatus
 
 User = get_user_model()
 
@@ -14,8 +15,21 @@ def api_client():
 
 @pytest.fixture
 def verified_user(db):
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="u_verified", email="v@example.com", password="x", is_email_verified=True
+    )
+    VerificationDocument.objects.create(
+        user=user,
+        kind="company",
+        file="verification/approved.pdf",
+        status=VerificationStatus.APPROVED,
+    )
+    return user
+
+@pytest.fixture
+def email_verified_user(db):
+    return User.objects.create_user(
+        username="u_email_only", email="email-only@example.com", password="x", is_email_verified=True
     )
 
 @pytest.fixture

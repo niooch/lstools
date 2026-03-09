@@ -1,16 +1,11 @@
-from rest_framework import mixins, viewsets, permissions, filters as drf_filters
-from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import mixins, viewsets, permissions
 from .models import Localisation
 from .serializers import LocalisationSerializer
-from .filters import LocalisationFilter
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.filters import SearchFilter, OrderingFilter
 from localisations import services as geo_svc 
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from users.permissions import IsFullyVerified
 
 class LocalisationViewSet(
     mixins.CreateModelMixin,
@@ -19,11 +14,14 @@ class LocalisationViewSet(
     viewsets.GenericViewSet,
 ):
     serializer_class = LocalisationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsFullyVerified]
 
     def get_queryset(self):
-        # Only the requesting user's localisations
-        return Localisation.objects.filter(created_by=self.request.user).order_by("-created_at")
+        qs = Localisation.objects.all().order_by("-created_at")
+        if getattr(self, "action", None) == "list":
+            # Keep the list scoped to the requester's own saved points.
+            return qs.filter(created_by=self.request.user)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
