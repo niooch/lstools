@@ -2,7 +2,6 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
@@ -16,11 +15,15 @@ def build_frontend_url(request, path, params):
         return f"{configured}{path}?{query}"
     return request.build_absolute_uri(f"{path}?{query}")
 
+
 def send_verification_email(user, request):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = email_verification_token.make_token(user)
-    verify_path = reverse("email-verify")  # /api/v1/auth/verify-email
-    verify_url = request.build_absolute_uri(f"{verify_path}?uid={uid}&token={token}")
+    verify_url = build_frontend_url(
+        request,
+        "/verify-email",
+        {"uid": uid, "token": token},
+    )
 
     subject = "Verify your email"
     text = (

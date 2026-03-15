@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api, setAuthToken } from "../lib/api";
+import { api, setAuthToken, logout as forceLogout } from "../lib/api";
 import type { AuthedUser } from "../types";
 
 const TOKEN_KEY = "access_token";
@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(null);
         setUser(null);
         setLoading(false);
+        forceLogout();
     }
 
     const value = useMemo(

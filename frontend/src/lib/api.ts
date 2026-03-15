@@ -1,6 +1,6 @@
 // src/lib/api.ts
 import axios from "axios";
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth";
+import { getAccessToken, getRefreshToken, setTokens, clearClientSessionCache } from "./auth";
 
 const baseURL = (import.meta.env.VITE_API_URL as string) || "";
 export const LOGIN_PATH =
@@ -45,13 +45,14 @@ function isAuthEndpoint(url?: string): boolean {
 function redirectToLogin() {
   if (didRedirectToLogin) return;
   didRedirectToLogin = true;
-  clearTokens();
+  refreshing = null;
+  clearClientSessionCache();
   setAuthToken(null);
   // dispatch app-wide signal (optional, if you want to listen elsewhere)
   try {
     window.dispatchEvent(new CustomEvent("auth:logout"));
   } catch {}
-  window.location.href = "/login";
+  window.location.replace("/login");
   // reset guard after a moment to avoid sticky state if user returns
   setTimeout(() => (didRedirectToLogin = false), 4000);
 }

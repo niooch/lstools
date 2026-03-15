@@ -113,7 +113,14 @@ class VerifyEmailView(APIView):
             return Response({"detail": "Invalid link."}, status=status.HTTP_400_BAD_REQUEST)
 
         if user.is_email_verified:
-            return Response({"detail": "Email already verified."}, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    "detail": "Email already verified.",
+                    "username": user.username,
+                    "already_verified": True,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         if not email_verification_token.check_token(user, token):
             return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
@@ -121,7 +128,14 @@ class VerifyEmailView(APIView):
         user.is_email_verified = True
         user.email_verified_at = timezone.now()
         user.save(update_fields=["is_email_verified", "email_verified_at"])
-        return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "detail": "Email verified successfully.",
+                "username": user.username,
+                "already_verified": False,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 @extend_schema(
     tags=["Auth"],

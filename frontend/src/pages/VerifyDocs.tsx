@@ -80,7 +80,6 @@ export default function VerifyDocs() {
           <label>
             {t("verify.upload.type")}
             <select value={kind} onChange={(e) => setKind(e.target.value as VerificationDoc["kind"])}>
-              <option value="company">{t("verify.upload.option.company")}</option>
               <option value="id">{t("verify.upload.option.id")}</option>
               <option value="license">{t("verify.upload.option.license")}</option>
               <option value="other">{t("verify.upload.option.other")}</option>

@@ -1,5 +1,7 @@
 import pytest
+from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
+from localisations.models import Localisation
 from users.models import VerificationDocument, VerificationStatus
 
 
@@ -50,7 +52,7 @@ def test_email_verified_without_docs_cannot_access_transport_tools(
             "time_end": now.isoformat(),
             "vehicle_type": vt_van.id,
             "price": "100.00",
-            "currency": "PLN",
+            "currency": "EUR",
         },
         format="json",
     )
@@ -113,3 +115,34 @@ def test_fully_verified_user_can_retrieve_other_users_localisation(api_client, l
 
     assert resp.status_code == 200, resp.data
     assert resp.data["id"] == loc_warsaw.id
+
+
+@pytest.mark.django_db
+def test_fully_verified_user_sees_all_localisations_in_list(api_client, verified_user, loc_warsaw):
+    other = verified_user.__class__.objects.create_user(
+        username="loc_list_reader",
+        email="loc_list_reader@example.com",
+        password="x",
+        is_email_verified=True,
+    )
+    VerificationDocument.objects.create(
+        user=other,
+        kind="company",
+        file="verification/loc-list-reader-approved.pdf",
+        status=VerificationStatus.APPROVED,
+    )
+    own_loc = Localisation.objects.create(
+        name="Reader Hub",
+        latitude=Decimal("50.000000"),
+        longitude=Decimal("19.000000"),
+        created_by=other,
+    )
+    api_client.force_authenticate(user=other)
+
+    resp = api_client.get(LOCALISATIONS)
+
+    assert resp.status_code == 200, resp.data
+    items = resp.data["results"] if isinstance(resp.data, dict) and "results" in resp.data else resp.data
+    ids = {item["id"] for item in items}
+    assert loc_warsaw.id in ids
+    assert own_loc.id in ids

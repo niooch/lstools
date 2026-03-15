@@ -172,7 +172,15 @@
         "reset_password_success": "Hasło zostało zaktualizowane.",
         "reset_password_failed": "Nie udało się zaktualizować hasła.",
         "invalid_reset_link": "Ten link resetujący jest nieprawidłowy albo wygasł.",
-        "back_to_login": "Wróć do logowania"
+        "back_to_login": "Wróć do logowania",
+        "email_verify_title": "Weryfikacja e-mail",
+        "email_verify_loading": "Weryfikowanie adresu e-mail…",
+        "email_verify_invalid_link": "Ten link weryfikacyjny jest nieprawidłowy albo wygasł.",
+        "email_verify_success": "Twój adres e-mail został zweryfikowany.",
+        "email_verify_success_user": "{{user}}, Twój adres e-mail został zweryfikowany.",
+        "email_verify_already": "Twój adres e-mail jest już zweryfikowany.",
+        "email_verify_already_user": "{{user}}, Twój adres e-mail jest już zweryfikowany.",
+        "email_verify_failed": "Nie udało się zweryfikować adresu e-mail."
     },
     "common": {
         "loading": "Ładowanie…"
@@ -324,8 +332,8 @@
         },
         "filters": {
             "header": "Filtruj i sortuj",
-            "originName": "Punkt startowy (nazwa)",
-            "destinationName": "Punkt docelowy (nazwa)",
+            "originName": "Punkt startowy (Kod Amazon)",
+            "destinationName": "Punkt docelowy (Kod Amazon)",
             "originPlaceholder": "np. WRO1",
             "destinationPlaceholder": "np. SZZ1",
             "startFrom": "Start nie wcześniej niż",
@@ -340,7 +348,7 @@
             "sortPriceDesc": "Cena ↓",
             "sortPPKAsc": "Cena/km ↑",
             "sortPPKDesc": "Cena/km ↓",
-            "nearHeader": "W pobliżu adresu (opcjonalnie)",
+            "nearHeader": "W pobliżu adresu",
             "searchNear": "Szukaj w pobliżu",
             "searchNearPlaceholder": "Miasto lub adres",
             "radius": "Promień",
@@ -358,9 +366,8 @@
             "title": "Prześlij dokument",
             "type": "Rodzaj",
             "option": {
-                "company": "Firma",
-                "id": "Dowód / Paszport",
-                "license": "Licencja",
+                "id": "OCP",
+                "license": "Licencja Transportowa",
                 "other": "Inne"
             },
             "button": "Prześlij",
@@ -479,11 +486,11 @@
             "instructions": "Kliknij na mapie, aby wbić pinezkę. Możesz też przeciągnąć marker, żeby precyzyjnie ustawić położenie.",
             "selectedPoint": "Wybrany punkt"
         },
-        "saveAsName": "Zapisz jako nazwę",
+        "saveAsName": "Podaj kod obiektu Amazon",
         "submit": "Dodaj lokalizację",
         "saving": "Zapisywanie…",
         "placeholders": {
-            "saveName": "np. Magazyn A (PL/WAW)",
+            "saveName": "np. BER8",
             "latitude": "np. 52.229700",
             "longitude": "np. 21.012200"
         },
@@ -514,8 +521,8 @@
         }
     },
     "about": {
-        "title": "O nas",
-        "body": "To jest strona O nas. Opisz tutaj produkt, misję i zespół."
+        "title": "Nasza Misja",
+        "body": "Naszym celem jest stworzenie scentralizowanej giełdy ładunków Amazon. Aby to osiągnąć, potrzebujemy Twojego codziennego zaangażowania dodawaj i pobieraj ładunki z tablicy podczas pracy. Im więcej aktywnych użytkowników, tym więcej ładunków możesz sprzedać."
     }
 
 }

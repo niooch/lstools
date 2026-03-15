@@ -164,7 +164,15 @@
         "reset_password_success": "Password updated successfully.",
         "reset_password_failed": "Could not update the password.",
         "invalid_reset_link": "This reset link is missing data or has expired.",
-        "back_to_login": "Back to login"
+        "back_to_login": "Back to login",
+        "email_verify_title": "Email verification",
+        "email_verify_loading": "Verifying your email…",
+        "email_verify_invalid_link": "This verification link is missing data or has expired.",
+        "email_verify_success": "Your email was verified.",
+        "email_verify_success_user": "{{user}}, your email was verified.",
+        "email_verify_already": "Your email is already verified.",
+        "email_verify_already_user": "{{user}}, your email is already verified.",
+        "email_verify_failed": "Could not verify your email."
     },
         "common": {
         },
@@ -320,8 +328,8 @@
             },
             "filters": {
                 "header": "Filter & sort",
-                "originName": "Origin (name)",
-                "destinationName": "Destination (name)",
+                "originName": "Origin (Amazon Code)",
+                "destinationName": "Destination (Amazon Code)",
                 "originPlaceholder": "e.g. WRO1",
                 "destinationPlaceholder": "e.g. SZZ1",
                 "startFrom": "Start from",
@@ -336,7 +344,7 @@
                 "sortPriceDesc": "Price ↓",
                 "sortPPKAsc": "Price/km ↑",
                 "sortPPKDesc": "Price/km ↓",
-                "nearHeader": "Near address (optional)",
+                "nearHeader": "Near address",
                 "searchNear": "Search near",
                 "searchNearPlaceholder": "City or address",
                 "radius": "Radius",
@@ -354,9 +362,8 @@
                 "title": "Upload a document",
                 "type": "Type",
                 "option": {
-                    "company": "Company",
-                    "id": "ID / Passport",
-                    "license": "License",
+                    "id": "OCP",
+                    "license": "Transport License",
                     "other": "Other"
                 },
                 "button": "Upload",
@@ -476,11 +483,11 @@
                 "instructions": "Click on the map to drop the pin. You can also drag the marker to fine-tune the location.",
                 "selectedPoint": "Selected point"
             },
-            "saveAsName": "Save as name",
+            "saveAsName": "Amazon warehouse code",
             "submit": "Add localisation",
             "saving": "Saving…",
             "placeholders": {
-                "saveName": "e.g. Warehouse A (PL/WAW)",
+                "saveName": "eg. BER8",
                 "latitude": "e.g. 52.229700",
                 "longitude": "e.g. 21.012200"
             },
@@ -511,8 +518,8 @@
             }
         },
         "about": {
-            "title": "About us",
-            "body": "This is our About page. Describe your product, mission, and team here."
+            "title": "Our Mission",
+            "body": "Our goal is to create a centralized exchange for Amazon loads. To achieve this, we need your daily engagement add and take loads from the board during your work. The more active users there are, the more loads you can sell."
         }
 
 }

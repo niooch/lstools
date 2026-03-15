@@ -17,7 +17,7 @@ def test_remove_stops_recomputes_length(auth_client, loc_warsaw, loc_wroclaw, lo
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=6)).isoformat(),
             "vehicle_type": vt_van.id, "crew": "single",
             "stop_ids": [loc_stop_1.id],
-            "price": "400.00", "currency": "PLN",
+            "price": "400.00", "currency": "EUR",
         },
         format="json",
     )
@@ -38,7 +38,7 @@ def test_invalid_crew_value_returns_400(auth_client, loc_warsaw, loc_wroclaw, vt
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
             "vehicle_type": vt_van.id, "crew": "triple",  # invalid
-            "price": "100.00", "currency": "PLN",
+            "price": "100.00", "currency": "EUR",
         },
         format="json",
     )
@@ -53,7 +53,7 @@ def test_invalid_stop_id_returns_400(auth_client, loc_warsaw, loc_wroclaw, vt_va
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
             "vehicle_type": vt_van.id, "stop_ids": [999999],  # not found
-            "price": "100.00", "currency": "PLN",
+            "price": "100.00", "currency": "EUR",
         },
         format="json",
     )

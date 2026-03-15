@@ -17,7 +17,7 @@ def test_available_at_inclusive_boundaries(auth_client, loc_warsaw, loc_wroclaw,
             "time_end": end.isoformat(),
             "vehicle_type": vt_van.id,
             "price": "100.00",
-            "currency": "PLN",
+            "currency": "EUR",
         },
         format="json",
     )

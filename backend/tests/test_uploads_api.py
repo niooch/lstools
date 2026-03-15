@@ -26,7 +26,7 @@ def test_route_photo_upload_list_delete(auth_client, verified_user, loc_warsaw, 
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=3)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN",
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR",
         }, format="json"
     )
     assert r.status_code == 201, r.data
@@ -59,7 +59,7 @@ def test_route_photo_upload_forbidden_for_non_owner(api_client, auth_client, ver
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=3)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN",
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR",
         }, format="json"
     )
     rid = r.data["id"]

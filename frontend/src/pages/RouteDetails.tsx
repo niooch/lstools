@@ -23,10 +23,11 @@ type RouteDto = {
   crew: "single" | "double";
   length_km?: string | null;
   price?: string | null;
-  currency: "PLN" | "EUR";
-  price_per_km?: string | null; // e.g. "2.63 PLN"
+  currency: "EUR";
+  price_per_km?: string | null; // e.g. "2.63 EUR"
   status: "active" | "sold" | "cancelled";
   owner?: string; // username only
+  owner_id?: number | null;
   stops: StopDto[];
 };
 type Localisation = {
@@ -46,6 +47,8 @@ type UserProfilePublic = {
   display_name?: string | null;
   nickname_color?: string | null;
   bio?: string | null;
+  email?: string | null;
+  phone_number?: string | null;
   route_stats?: {
     active: number;
     sold: number;
@@ -112,17 +115,19 @@ export default function RouteDetails() {
         setDestination(d);
         setVehicle(v);
 
-        // 3) Resolve seller: username -> id -> profile + core user (for email/phone)
-        if (rt.owner) {
-          try {
-            const profile = await findOwnerByUsername(rt.owner);
-            if (!on) return;
-            if (profile) setOwnerProfile(profile);
-          } catch {
-            if (!on) return;
-            setOwnerProfile(null);
-          }
+        // 3) Resolve seller profile by owner_id when available; fallback to username lookup.
+        let profile: UserProfilePublic | null = null;
+        if (typeof rt.owner_id === "number") {
+          profile = await api
+            .get(`/api/users/profiles/${rt.owner_id}`)
+            .then((x) => x.data as UserProfilePublic)
+            .catch(() => null);
         }
+        if (!profile && rt.owner) {
+          profile = await findOwnerByUsername(rt.owner).catch(() => null);
+        }
+        if (!on) return;
+        setOwnerProfile(profile);
       } catch (e: any) {
         if (!on) return;
         setErr(e?.response?.data?.detail || t("routes.details.errors.load_failed"));
@@ -175,8 +180,8 @@ export default function RouteDetails() {
 
   const crewIcon = route.crew === "double" ? "/icons/crew-double.png" : "/icons/crew-single.png";
 
-  const contactEmail = null;
-  const contactPhone = null;
+  const contactEmail = normalizeContact(ownerProfile?.email);
+  const contactPhone = normalizeContact(ownerProfile?.phone_number);
 
   const isOwner = !!(me && route.owner && me.username === route.owner);
 
@@ -418,7 +423,7 @@ export default function RouteDetails() {
                 <span style={{ opacity: 0.7, marginRight: 6 }}>{t("routes.details.phone")}:</span>
                 {contactPhone ? (
                   <a
-                    href={`tel:${String(contactPhone).replace(/\s+/g, "")}`}
+                    href={`tel:${String(contactPhone).replace(/[\s().-]+/g, "")}`}
                     style={{ textDecoration: "none" }}
                   >
                     {contactPhone}
@@ -631,6 +636,12 @@ function formatPricePerKm(r: RouteDto) {
   }
   if (r.price_per_km) return `${r.price_per_km}/km`;
   return "—";
+}
+
+function normalizeContact(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed || null;
 }
 
 /** Paginate public profiles to resolve username -> profile without touching admin-only endpoints. */

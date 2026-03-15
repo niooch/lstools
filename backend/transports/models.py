@@ -33,7 +33,6 @@ class CrewType(models.TextChoices):
     DOUBLE = "double", "Double crew"
 
 class Currency(models.TextChoices):
-    PLN = "PLN", "Polish Zloty"
     EUR = "EUR", "Euro"
 
 class VehicleType(TimestampedModel):

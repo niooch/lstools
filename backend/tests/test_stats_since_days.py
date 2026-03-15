@@ -12,7 +12,7 @@ def test_stats_since_days_limits_recent(auth_client, loc_warsaw, loc_wroclaw, vt
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN",
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR",
         },
         format="json",
     )
@@ -27,7 +27,7 @@ def test_stats_since_days_limits_recent(auth_client, loc_warsaw, loc_wroclaw, vt
         destination_id=loc_wroclaw.id,
         time_start=now - timezone.timedelta(days=60),
         time_end=now - timezone.timedelta(days=59, hours=20),
-        vehicle_type=vt_van, price="200.00", currency="PLN",
+        vehicle_type=vt_van, price="200.00", currency="EUR",
     )
     # manually set created_at older (if field exists)
     if hasattr(older, "created_at"):

@@ -53,7 +53,7 @@ def test_stop_limit_enforced(auth_client, loc_warsaw, loc_wroclaw, vt_van, now):
             "crew": "single",
             "stop_ids": stop_ids,
             "price": "500.00",
-            "currency": "PLN",
+            "currency": "EUR",
         },
         format="json",
     )
@@ -71,7 +71,7 @@ def test_update_stops_recomputes_length(auth_client, loc_warsaw, loc_wroclaw, lo
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=8)).isoformat(),
-            "vehicle_type": vt_van.id, "crew": "single", "price": "400.00", "currency": "PLN"
+            "vehicle_type": vt_van.id, "crew": "single", "price": "400.00", "currency": "EUR"
         },
         format="json",
     )
@@ -83,3 +83,21 @@ def test_update_stops_recomputes_length(auth_client, loc_warsaw, loc_wroclaw, lo
     assert r2.status_code == 200, r2.data
     assert r2.data["length_km"] == "200.00"
 
+
+@pytest.mark.django_db
+def test_currency_pln_rejected(auth_client, loc_warsaw, loc_wroclaw, vt_van, now):
+    r = auth_client.post(
+        BASE,
+        {
+            "origin": loc_warsaw.id,
+            "destination": loc_wroclaw.id,
+            "time_start": now.isoformat(),
+            "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
+            "vehicle_type": vt_van.id,
+            "price": "200.00",
+            "currency": "PLN",
+        },
+        format="json",
+    )
+    assert r.status_code == 400
+    assert "currency" in r.data

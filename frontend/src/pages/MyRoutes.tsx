@@ -49,7 +49,7 @@ type RouteRow = {
   created_by?: UserPublic | number | null;
 
   price?: string | number | null;
-  currency?: "PLN" | "EUR" | string | null;
+  currency?: "EUR" | string | null;
   time_start?: string | null;
   time_end?: string | null;
 };
@@ -264,11 +264,11 @@ export default function MyRoutes() {
               const startLabel = fmtDateTime(r.time_start);
               const endLabel = fmtDateTime(r.time_end);
               const durationLabel = fmtDurationHHMM(r.time_start, r.time_end);
-              const priceLabel = moneyFmt(r.price, (r.currency || "PLN") as string);
+              const priceLabel = moneyFmt(r.price, (r.currency || "EUR") as string);
               const ppkLabel = pricePerKmFmt(
                 r.price,
                 typeof lenNum === "number" ? lenNum : null,
-                r.currency || "PLN"
+                r.currency || "EUR"
               );
 
               // vehicle type name + attribute badge

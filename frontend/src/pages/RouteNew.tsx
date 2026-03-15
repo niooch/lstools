@@ -52,8 +52,8 @@ export default function RouteNew() {
 
   const [vehName, setVehName] = useState("");
   const [crew, setCrew] = useState<Crew>("single");
-  const [currency, setCurrency] = useState<"PLN" | "EUR">("PLN");
   const [price, setPrice] = useState<string>("");
+  const currency = "EUR" as const;
 
   // pretty addresses (best-effort using your proxy)
   const [originAddr, setOriginAddr] = useState<string | null>(null);
@@ -366,10 +366,7 @@ export default function RouteNew() {
               </label>
               <label style={lbl}>
                 <span>{t("routeNew.currency")}</span>
-                <select value={currency} onChange={(e) => setCurrency(e.target.value as any)} style={inp}>
-                  <option value="PLN">PLN</option>
-                  <option value="EUR">EUR</option>
-                </select>
+                <input value={currency} readOnly style={inp} />
               </label>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

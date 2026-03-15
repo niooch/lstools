@@ -18,9 +18,6 @@ class LocalisationViewSet(
 
     def get_queryset(self):
         qs = Localisation.objects.all().order_by("-created_at")
-        if getattr(self, "action", None) == "list":
-            # Keep the list scoped to the requester's own saved points.
-            return qs.filter(created_by=self.request.user)
         return qs
 
     def perform_create(self, serializer):

@@ -12,7 +12,7 @@ def test_chat_filter_by_route(auth_client, loc_warsaw, loc_wroclaw, vt_van, now)
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN",
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR",
         },
         format="json",
     ).data["id"]
@@ -22,7 +22,7 @@ def test_chat_filter_by_route(auth_client, loc_warsaw, loc_wroclaw, vt_van, now)
         {
             "origin": loc_wroclaw.id, "destination": loc_warsaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "200.00", "currency": "PLN",
+            "vehicle_type": vt_van.id, "price": "200.00", "currency": "EUR",
         },
         format="json",
     ).data["id"]

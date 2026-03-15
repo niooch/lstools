@@ -9,7 +9,6 @@ import crewDouble from "../assets/crew-double.png";
 
 const ROUTES_BASE = "/api/transport/routes";
 const LOCALISATIONS_BASE = "/api/localisations";
-const USERS_BASE = "/api/users/";                // list endpoint (paginated)
 const USERS_PROFILES_BASE = "/api/users/profiles";
 const VEH_TYPES_BASE = "/api/transport/vehicle-types"; // no trailing slash
 const GEO_PROXY = "/api/geo/search";
@@ -58,11 +57,12 @@ type RouteRow = {
   vehicle_type?: VehicleType | number | null;
 
   owner?: string | UserPublic | number | null;
+  owner_id?: number | null;
   user?: UserPublic | number | null;
   created_by?: UserPublic | number | null;
 
   price?: string | number | null;
-  currency?: "PLN" | "EUR" | string | null;
+  currency?: "EUR" | string | null;
   time_start?: string | null;
   time_end?: string | null;
 };
@@ -168,6 +168,13 @@ function getOwnerIdAndLabel(
   userById: Record<number, UserPublic>,
   userByUsername: Record<string, UserPublic>
 ): { id?: number; label: string } {
+  if (typeof r.owner_id === "number") {
+    const prof = userById[r.owner_id];
+    if (prof) return { id: r.owner_id, label: userLabel(prof) };
+    if (typeof r.owner === "string" && r.owner.trim()) return { id: r.owner_id, label: r.owner.trim() };
+    return { id: r.owner_id, label: `#${r.owner_id}` };
+  }
+
   const raw = r.owner ?? r.user ?? r.created_by;
 
   // 1) numeric id
@@ -219,10 +226,10 @@ export default function RoutesList() {
   const [locById, setLocById] = useState<Record<number, Localisation>>({});
   const [vehById, setVehById] = useState<VehMap>({});
 
-  // Users: profiles (by id) and a username→user map (from /api/users list)
+  // Users: profiles (by id) and a username→user map (from /api/users/profiles)
   const [userById, setUserById] = useState<Record<number, UserPublic>>({});
   const [userByUsername, setUserByUsername] = useState<Record<string, UserPublic>>({});
-  const allUsersLoadedRef = useRef(false);
+  const allProfilesLoadedRef = useRef(false);
 
   // “Near” search + distance
   const [qNear, setQNear] = useState("");
@@ -297,6 +304,8 @@ export default function RoutesList() {
               if (typeof vt === "number") vehIds.add(vt);
               else if (vt && typeof vt === "object" && (vt as any).id) vehIds.add((vt as any).id as number);
 
+              if (typeof rt.owner_id === "number") userIds.add(rt.owner_id);
+
               const cand = rt.owner ?? rt.user ?? rt.created_by;
               if (typeof cand === "number") userIds.add(cand);
               else if (cand && typeof cand === "object" && typeof (cand as any).id === "number") userIds.add((cand as any).id);
@@ -316,10 +325,10 @@ export default function RoutesList() {
           let localUserById: Record<number, UserPublic> = { ...userById };
           let localUserByUsername: Record<string, UserPublic> = { ...userByUsername };
 
-          // Load ALL users once (paginated) to populate username -> id
-          if (!allUsersLoadedRef.current) {
-              const { byId, byUsername } = await fetchAllUsers();
-              allUsersLoadedRef.current = true;
+          // Load ALL public profiles once (paginated) to populate username -> id
+          if (!allProfilesLoadedRef.current) {
+              const { byId, byUsername } = await fetchAllProfiles();
+              allProfilesLoadedRef.current = true;
 
               // Merge into local maps FIRST (so we can use them right away)
               localUserById = { ...localUserById, ...byId };
@@ -336,9 +345,10 @@ export default function RoutesList() {
               if (u?.id) userIds.add(u.id);
           }
 
-          // Fetch profiles/{id} to get display_name for all known ids
-          if (userIds.size) {
-              const profById = await fetchUserProfiles([...userIds]);
+          // Fetch profiles/{id} only for any ids still missing in the local map
+          const missingProfileIds = [...userIds].filter((uid) => !localUserById[uid]);
+          if (missingProfileIds.length) {
+              const profById = await fetchUserProfiles(missingProfileIds);
               if (Object.keys(profById).length) {
                   // update local map so this render can immediately use display_name
                   localUserById = { ...localUserById, ...profById };
@@ -650,11 +660,11 @@ export default function RoutesList() {
               const startLabel = fmtDateTime(r.time_start);
               const endLabel = fmtDateTime(r.time_end);
               const durationLabel = fmtDurationHHMM(r.time_start, r.time_end);
-              const priceLabel = moneyFmt(r.price, (r.currency || "PLN") as string);
+              const priceLabel = moneyFmt(r.price, (r.currency || "EUR") as string);
               const ppkLabel = pricePerKmFmt(
                 r.price,
                 typeof lenNum === "number" ? lenNum : null,
-                r.currency || "PLN",
+                r.currency || "EUR",
               );
 
               // vehicle type label + attribute badge
@@ -822,6 +832,37 @@ export default function RoutesList() {
           <form onSubmit={onApplyFilters} style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 700 }}>{t("routesList.filters.header")}</div>
 
+            <div style={{ fontWeight: 700 }}>{t("routesList.filters.nearHeader")}</div>
+            <label style={lbl}>
+              <span>{t("routesList.filters.searchNear")}</span>
+              <input
+                type="text"
+                placeholder={t("routesList.filters.searchNearPlaceholder")}
+                value={qNear}
+                onChange={(e) => setQNear(e.target.value)}
+                style={inp}
+              />
+            </label>
+
+            <label style={lbl}>
+              <span>{t("routesList.filters.radius")}</span>
+              <select value={radiusKm} onChange={(e) => setRadiusKm(parseInt(e.target.value))} style={inp}>
+                {[50, 80, 120, 200, 300].map((k) => (
+                  <option key={k} value={k}>
+                    {k} {t("routesList.kmAbbr")}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {searchPoint && (
+              <div style={{ fontSize: 12, opacity: 0.8 }}>
+                {t("routesList.filters.using")} <em>{searchLabel}</em>
+              </div>
+            )}
+
+            <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
+
             <label style={lbl}>
               <span>{t("routesList.filters.originName")}</span>
               <input
@@ -937,37 +978,6 @@ export default function RoutesList() {
               </select>
             </label>
 
-            <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
-
-            <div style={{ fontWeight: 700 }}>{t("routesList.filters.nearHeader")}</div>
-            <label style={lbl}>
-              <span>{t("routesList.filters.searchNear")}</span>
-              <input
-                type="text"
-                placeholder={t("routesList.filters.searchNearPlaceholder")}
-                value={qNear}
-                onChange={(e) => setQNear(e.target.value)}
-                style={inp}
-              />
-            </label>
-
-            <label style={lbl}>
-              <span>{t("routesList.filters.radius")}</span>
-              <select value={radiusKm} onChange={(e) => setRadiusKm(parseInt(e.target.value))} style={inp}>
-                {[50, 80, 120, 200, 300].map((k) => (
-                  <option key={k} value={k}>
-                    {k} {t("routesList.kmAbbr")}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {searchPoint && (
-              <div style={{ fontSize: 12, opacity: 0.8 }}>
-                {t("routesList.filters.using")} <em>{searchLabel}</em>
-              </div>
-            )}
-
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="submit" style={btn}>
                 {t("routesList.filters.apply")}
@@ -1066,15 +1076,15 @@ export default function RoutesList() {
     });
   }
 
-  // Fetch ALL users (paginated) and build maps by id and by username
-  async function fetchAllUsers(): Promise<{
+  // Fetch ALL public profiles (paginated) and build maps by id and by username.
+  async function fetchAllProfiles(): Promise<{
     byId: Record<number, UserPublic>;
     byUsername: Record<string, UserPublic>;
   }> {
     const byId: Record<number, UserPublic> = {};
     const byUsername: Record<string, UserPublic> = {};
 
-    let url: string | null = `${USERS_BASE}`;
+    let url: string | null = `${USERS_PROFILES_BASE}`;
     while (url) {
       try {
         const r = await api.get(url);

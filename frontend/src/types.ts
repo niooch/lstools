@@ -8,7 +8,7 @@ export type Route = {
     time_start: string; time_end: string;
     vehicle_type: number;
     crew: "single" | "double";
-    currency: "PLN" | "EUR";
+    currency: "EUR";
     price: string | null;
     length_km: string | null;
     price_per_km?: string | null;
@@ -32,6 +32,8 @@ export type UserProfilePublic = {
   id: number;
   username: string;
   display_name?: string;
+  email?: string;
+  phone_number?: string;
   nickname_color: string;
   bio?: string;
   route_stats: { active: number; sold: number; cancelled: number; total: number };
@@ -49,7 +51,7 @@ export type UserProfileMe = {
 
 export type VerificationDoc = {
   id: number;
-  kind: "id" | "company" | "license" | "other" | string;
+  kind: "id" | "license" | "other" | string;
   file: string; // URL
   status: "pending" | "approved" | "rejected" | string;
   admin_note?: string;

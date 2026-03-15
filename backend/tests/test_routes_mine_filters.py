@@ -14,7 +14,7 @@ def test_mine_with_vehicle_type_filter(auth_client, vt_van, vt_reefer, loc_warsa
             "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
             "vehicle_type": vt_van.id,
             "price": "100.00",
-            "currency": "PLN",
+            "currency": "EUR",
         },
         format="json",
     ).data["id"]
@@ -28,7 +28,7 @@ def test_mine_with_vehicle_type_filter(auth_client, vt_van, vt_reefer, loc_warsa
             "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
             "vehicle_type": vt_reefer.id,
             "price": "200.00",
-            "currency": "PLN",
+            "currency": "EUR",
         },
         format="json",
     ).data["id"]

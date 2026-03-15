@@ -11,7 +11,7 @@ def test_soft_delete_is_cancel(auth_client, loc_warsaw, loc_wroclaw, vt_van, now
         BASE, {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=4)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN"
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR"
         }, format="json"
     )
     rid = r.data["id"]
@@ -23,19 +23,52 @@ def test_soft_delete_is_cancel(auth_client, loc_warsaw, loc_wroclaw, vt_van, now
 
 @pytest.mark.django_db
 def test_cancel_and_sell_actions(auth_client, loc_warsaw, loc_wroclaw, vt_van, now):
-    r = auth_client.post(
+    cancel_route = auth_client.post(
         BASE, {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=4)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN"
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR"
         }, format="json"
     )
-    rid = r.data["id"]
-    c = auth_client.post(f"{BASE}/{rid}/cancel")
+    cancel_id = cancel_route.data["id"]
+    c = auth_client.post(f"{BASE}/{cancel_id}/cancel")
     assert c.status_code == 200 and c.data["status"] == RouteStatus.CANCELLED
 
-    s = auth_client.post(f"{BASE}/{rid}/sell", {"price": "150.00"}, format="json")
+    s_cancelled = auth_client.post(f"{BASE}/{cancel_id}/sell", {"price": "150.00"}, format="json")
+    assert s_cancelled.status_code == 400
+
+    sell_route = auth_client.post(
+        BASE, {
+            "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
+            "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=4)).isoformat(),
+            "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR"
+        }, format="json"
+    )
+    sell_id = sell_route.data["id"]
+    s = auth_client.post(f"{BASE}/{sell_id}/sell", {"price": "150.00"}, format="json")
     assert s.status_code == 200 and s.data["status"] == RouteStatus.SOLD and s.data["price"] == "150.00"
+
+
+@pytest.mark.django_db
+def test_route_auto_cancels_after_start_time(auth_client, loc_warsaw, loc_wroclaw, vt_van, now):
+    r = auth_client.post(
+        BASE,
+        {
+            "origin": loc_warsaw.id,
+            "destination": loc_wroclaw.id,
+            "time_start": (now - timezone.timedelta(hours=1)).isoformat(),
+            "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
+            "vehicle_type": vt_van.id,
+            "price": "120.00",
+            "currency": "EUR",
+        },
+        format="json",
+    )
+    rid = r.data["id"]
+
+    detail = auth_client.get(f"{BASE}/{rid}")
+    assert detail.status_code == 200, detail.data
+    assert detail.data["status"] == RouteStatus.CANCELLED
 
 @pytest.mark.django_db
 def test_list_active_only_by_default(auth_client, verified_user, loc_warsaw, loc_wroclaw, vt_van, now):
@@ -45,7 +78,7 @@ def test_list_active_only_by_default(auth_client, verified_user, loc_warsaw, loc
             BASE, {
                 "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
                 "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-                "vehicle_type": vt_van.id, "price": price, "currency": "PLN"
+                "vehicle_type": vt_van.id, "price": price, "currency": "EUR"
             }, format="json"
         ).data["id"]
 
@@ -71,14 +104,14 @@ def test_mine_and_history(auth_client, verified_user, loc_warsaw, loc_wroclaw, v
         r = auth_client.post(
             BASE, {"origin": loc_warsaw.id, "destination": loc_wroclaw.id,
                    "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-                   "vehicle_type": vt_van.id, "price": "100.00", "currency": "PLN"},
+                   "vehicle_type": vt_van.id, "price": "100.00", "currency": "EUR"},
             format="json"
         )
         ids.append(r.data["id"])
     sold = auth_client.post(
         BASE, {"origin": loc_warsaw.id, "destination": loc_wroclaw.id,
                "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-               "vehicle_type": vt_van.id, "price": "200.00", "currency": "PLN"},
+               "vehicle_type": vt_van.id, "price": "200.00", "currency": "EUR"},
         format="json"
     ).data["id"]
     auth_client.post(f"{BASE}/{sold}/sell")
@@ -90,4 +123,3 @@ def test_mine_and_history(auth_client, verified_user, loc_warsaw, loc_wroclaw, v
     hist = auth_client.get(f"{BASE}/mine/history")
     hist_ids = {i["id"] for i in (hist.data["results"] if isinstance(hist.data, dict) and "results" in hist.data else hist.data)}
     assert sold in hist_ids
-

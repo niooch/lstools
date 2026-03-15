@@ -11,7 +11,7 @@ def test_origin_near_filters(auth_client, loc_warsaw, loc_wroclaw, vt_van, now):
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100", "currency": "PLN"
+            "vehicle_type": vt_van.id, "price": "100", "currency": "EUR"
         },
         format="json",
     ).data["id"]
@@ -21,7 +21,7 @@ def test_origin_near_filters(auth_client, loc_warsaw, loc_wroclaw, vt_van, now):
         {
             "origin": loc_wroclaw.id, "destination": loc_warsaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "200", "currency": "PLN"
+            "vehicle_type": vt_van.id, "price": "200", "currency": "EUR"
         },
         format="json",
     ).data["id"]
@@ -46,7 +46,7 @@ def test_origin_q_with_radius_uses_nominatim(auth_client, loc_warsaw, loc_wrocla
         {
             "origin": loc_warsaw.id, "destination": loc_wroclaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "100", "currency": "PLN"
+            "vehicle_type": vt_van.id, "price": "100", "currency": "EUR"
         },
         format="json",
     ).data["id"]
@@ -56,7 +56,7 @@ def test_origin_q_with_radius_uses_nominatim(auth_client, loc_warsaw, loc_wrocla
         {
             "origin": loc_wroclaw.id, "destination": loc_warsaw.id,
             "time_start": now.isoformat(), "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
-            "vehicle_type": vt_van.id, "price": "200", "currency": "PLN"
+            "vehicle_type": vt_van.id, "price": "200", "currency": "EUR"
         },
         format="json",
     ).data["id"]

@@ -29,8 +29,10 @@ class PublicUserSerializer(serializers.ModelSerializer):
                   "display_name",
                   "nickname_color",
                   "bio",
+                  "email",
+                  "phone_number",
                   "route_stats")
-        read_only_fields = ("id", "username")
+        read_only_fields = ("id", "username", "email", "phone_number")
 
     def get_route_stats(self, obj):
         qs = Route.objects.filter(owner=obj)

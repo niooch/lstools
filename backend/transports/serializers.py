@@ -48,7 +48,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from localisations.models import Localisation
-from .models import Route, RouteStop, CrewType
+from .models import Route, RouteStop, CrewType, Currency
 from . import services as svc  # module import so tests can monkeypatch
 User = get_user_model()
 
@@ -67,11 +67,12 @@ class StopOutSerializer(serializers.ModelSerializer):
 
 class RouteSerializer(serializers.ModelSerializer):
     owner = serializers.StringRelatedField(read_only=True)
+    owner_id = serializers.IntegerField(source="owner.id", read_only=True)
     price_per_km = serializers.SerializerMethodField(read_only=True)
 
     crew = serializers.ChoiceField(choices=CrewType.choices, default=CrewType.SINGLE)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
-    currency = serializers.CharField(max_length=3, required=False)
+    currency = serializers.ChoiceField(choices=[Currency.EUR], default=Currency.EUR, required=False)
 
     # Write: accept up to 5 stop ids; Read: return ordered stops
     stop_ids = serializers.ListField(
@@ -94,12 +95,12 @@ class RouteSerializer(serializers.ModelSerializer):
             "price_per_km",
             "stops", "stop_ids",
             "status", "sold_at", "cancelled_at",
-            "owner", "created_at", "updated_at",
+            "owner", "owner_id", "created_at", "updated_at",
         )
         read_only_fields = (
             "id", "length_km", "price_per_km", "stops",
             "status", "sold_at", "cancelled_at",
-            "owner", "created_at", "updated_at",
+            "owner", "owner_id", "created_at", "updated_at",
         )
 
     def get_price_per_km(self, obj):
@@ -107,6 +108,11 @@ class RouteSerializer(serializers.ModelSerializer):
             val = Decimal(obj.price) / Decimal(obj.length_km)
             return f"{val.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)} {getattr(obj, 'currency', '')}".strip()
         return None
+
+    def validate_currency(self, value):
+        if value != Currency.EUR:
+            raise serializers.ValidationError("Only EUR is supported.")
+        return value
 
     # ---------------- helpers ----------------
 
@@ -162,6 +168,7 @@ class RouteSerializer(serializers.ModelSerializer):
         stop_ids = validated_data.pop("stop_ids", [])
         # enforce limit BEFORE creating the route
         stops_locs = self._validate_and_fetch_stops(stop_ids)
+        validated_data["currency"] = Currency.EUR
 
         route = Route.objects.create(owner=self.context["request"].user, **validated_data)
 
@@ -177,6 +184,7 @@ class RouteSerializer(serializers.ModelSerializer):
         # If caller provided stop_ids, validate & set; else keep existing
         provided = "stop_ids" in validated_data
         stop_ids = validated_data.pop("stop_ids", None)
+        validated_data["currency"] = Currency.EUR
 
         instance = super().update(instance, validated_data)
 
@@ -201,4 +209,3 @@ class RouteSerializer(serializers.ModelSerializer):
         if origin != instance.origin or destination != instance.destination or instance.length_km is None:
             validated_data["length_km"] = self._compute_length(origin, destination)
         return super().update(instance, validated_data)
-

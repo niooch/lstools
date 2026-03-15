@@ -5,17 +5,11 @@ import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import type { UserProfilePublic, Route } from "../types";
 
-type ContactInfo = {
-  email?: string | null;
-  phone_number?: string | null;
-};
-
 export default function Profile() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<UserProfilePublic | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [contact, setContact] = useState<ContactInfo>({});
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,11 +18,9 @@ export default function Profile() {
       try {
         setErr(null);
 
-        const [uRes, rRes, coreRes] = await Promise.all([
+        const [uRes, rRes] = await Promise.all([
           api.get(`/api/users/profiles/${id}`),
           api.get(`/api/transport/routes?owner=${id}`),
-          // core user might be restricted; swallow errors and keep going
-          api.get(`/api/users/${id}`).catch(() => ({ data: {} as ContactInfo })),
         ]);
 
         if (!on) return;
@@ -38,12 +30,6 @@ export default function Profile() {
 
         const items: Route[] = Array.isArray(rRes.data) ? rRes.data : rRes.data.results || [];
         setRoutes(items);
-
-        const core: any = coreRes?.data || {};
-        setContact({
-          email: core.email ?? (u as any).email ?? null,
-          phone_number: core.phone_number ?? (u as any).phone_number ?? null,
-        });
       } catch (e: any) {
         if (!on) return;
         setErr(e.response?.data?.detail || t("common.loadFailedProfile"));
@@ -91,9 +77,9 @@ export default function Profile() {
             <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
               {t("common.email")}
             </div>
-            {contact.email ? (
-              <a href={`mailto:${contact.email}`} style={{ color: "#2563eb", wordBreak: "break-all" }}>
-                {contact.email}
+            {user.email ? (
+              <a href={`mailto:${user.email}`} style={{ color: "#2563eb", wordBreak: "break-all" }}>
+                {user.email}
               </a>
             ) : (
               <span style={{ opacity: 0.6 }}>—</span>
@@ -104,12 +90,12 @@ export default function Profile() {
             <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
               {t("common.phone")}
             </div>
-            {contact.phone_number ? (
+            {user.phone_number ? (
               <a
-                href={`tel:${String(contact.phone_number).replace(/\s+/g, "")}`}
+                href={`tel:${String(user.phone_number).replace(/\s+/g, "")}`}
                 style={{ color: "#2563eb", wordBreak: "break-all" }}
               >
-                {contact.phone_number}
+                {user.phone_number}
               </a>
             ) : (
               <span style={{ opacity: 0.6 }}>—</span>

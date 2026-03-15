@@ -23,6 +23,18 @@ from django.shortcuts import get_object_or_404
 from decimal import Decimal, ROUND_HALF_UP
 
 
+def auto_cancel_started_routes():
+    now = timezone.now()
+    Route.objects.filter(
+        status=RouteStatus.ACTIVE,
+        time_start__lte=now,
+    ).update(
+        status=RouteStatus.CANCELLED,
+        cancelled_at=now,
+        updated_at=now,
+    )
+
+
 
 
 route_list_params = [
@@ -174,6 +186,7 @@ class RouteViewSet(viewsets.ModelViewSet):
         return super().get_throttles()
 
     def get_queryset(self):
+        auto_cancel_started_routes()
         qs = (
                 Route.objects.select_related("origin", "destination", "vehicle_type", "owner")
                 .prefetch_related("stops__localisation")
@@ -185,6 +198,7 @@ class RouteViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_object(self):
+        auto_cancel_started_routes()
         obj = get_object_or_404(
                 Route.objects.select_related("origin", "destination", "vehicle_type", "owner"),
                 pk=self.kwargs["pk"],
@@ -217,6 +231,7 @@ class RouteViewSet(viewsets.ModelViewSet):
             )
     @action(detail=False, methods=["get"], url_path="mine")
     def mine(self, request):
+        auto_cancel_started_routes()
         qs = Route.objects.select_related("origin", "destination", "vehicle_type", "owner").filter(owner=request.user)
         qs = self.filter_queryset(qs)
         page = self.paginate_queryset(qs)
@@ -242,6 +257,7 @@ class RouteViewSet(viewsets.ModelViewSet):
             )
     @action(detail=False, methods=["get"], url_path="mine/history")
     def mine_history(self, request):
+        auto_cancel_started_routes()
         qs = (
                 Route.objects.select_related("origin", "destination", "vehicle_type", "owner")
                 .filter(owner=request.user, status__in=[RouteStatus.SOLD, RouteStatus.CANCELLED])
@@ -275,6 +291,8 @@ class RouteViewSet(viewsets.ModelViewSet):
     def sell(self, request, pk=None):
         route = self.get_object()
         self.check_object_permissions(request, route)
+        if route.status != RouteStatus.ACTIVE:
+            return Response({"detail": "Only active routes can be sold."}, status=400)
         price_override = request.data.get("price")
 
         if price_override is not None:
@@ -312,6 +330,7 @@ class MyRouteStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsFullyVerified]
 
     def get(self, request):
+        auto_cancel_started_routes()
         try:
             since_days = int(request.query_params.get("since_days", 30))
         except (TypeError, ValueError):

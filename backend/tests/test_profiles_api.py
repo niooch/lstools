@@ -72,9 +72,8 @@ def test_public_profile_view_safe_fields(auth_client):
     assert "I haul reefers" in (data.get("bio") or "")
     assert data["nickname_color"].startswith("#")
     assert "route_stats" in data and {"active", "sold", "cancelled", "total"} <= set(data["route_stats"].keys())
-    # private fields SHOULD NOT be here
-    assert "email" not in data
-    assert "phone_number" not in data
+    assert data["email"] == "other@example.com"
+    assert data["phone_number"] == "+48 123 456 789"
 
 
 @pytest.mark.django_db
@@ -114,7 +113,7 @@ def test_public_profile_route_stats_counts(auth_client, loc_warsaw, loc_wroclaw,
                     "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
                     "vehicle_type": vt_van.id,
                     "price": price,
-                    "currency": "PLN",
+                    "currency": "EUR",
                     },
                 format="json",
                 )
@@ -153,7 +152,7 @@ def test_routes_list_filter_by_owner(auth_client, verified_user, loc_warsaw, loc
                 "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
                 "vehicle_type": vt_van.id,
                 "price": "100.00",
-                "currency": "PLN",
+                "currency": "EUR",
                 },
             format="json",
             ).data["id"]
@@ -174,7 +173,7 @@ def test_routes_list_filter_by_owner(auth_client, verified_user, loc_warsaw, loc
                 "time_end": (now + timezone.timedelta(hours=2)).isoformat(),
                 "vehicle_type": vt_van.id,
                 "price": "200.00",
-                "currency": "PLN",
+                "currency": "EUR",
                 },
             format="json",
             ).data["id"]
