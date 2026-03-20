@@ -78,6 +78,7 @@ export default function RouteDetails() {
   const [err, setErr] = useState<string | null>(null);
 
   const [selling, setSelling] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [sellErr, setSellErr] = useState<string | null>(null);
   const [sellOk, setSellOk] = useState<string | null>(null);
 
@@ -97,6 +98,8 @@ export default function RouteDetails() {
         setLoading(true);
         setSellErr(null);
         setSellOk(null);
+        setSelling(false);
+        setCancelling(false);
 
         // 1) Route
         const r = await api.get(`/api/transport/routes/${id}`);
@@ -209,6 +212,26 @@ export default function RouteDetails() {
     }
   }
 
+  async function markAsCancelled() {
+    if (!route) return;
+    if (!window.confirm(t("routes.details.confirm_mark_cancelled"))) return;
+
+    setCancelling(true);
+    setSellErr(null);
+    setSellOk(null);
+
+    try {
+      const resp = await api.post(`/api/transport/routes/${route.id}/cancel`);
+      const newStatus = resp?.data?.status ?? "cancelled";
+      setRoute((r) => (r ? { ...r, status: newStatus } : r));
+      setSellOk(t("routes.details.cancel_ok"));
+    } catch (e: any) {
+      setSellErr(e?.response?.data?.detail || t("routes.details.errors.cancel_failed"));
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "360px 1fr 420px", gap: 16 }}>
       {/* LEFT: timeline + map */}
@@ -277,21 +300,40 @@ export default function RouteDetails() {
             <StatusPill status={route.status} />
           </div>
           {isOwner && route.status === "active" && (
-            <button
-              onClick={markAsSold}
-              disabled={selling}
-              title={t("routes.details.mark_as_sold")}
-              style={{
-                border: "1px solid #ddd",
-                background: "#fff",
-                borderRadius: 999,
-                padding: "6px 10px",
-                fontWeight: 600,
-                cursor: selling ? "not-allowed" : "pointer",
-              }}
-            >
-              {selling ? t("routes.details.marking") : t("routes.details.mark_as_sold")}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={markAsSold}
+                disabled={selling || cancelling}
+                title={t("routes.details.mark_as_sold")}
+                style={{
+                  border: "1px solid #ddd",
+                  background: "#fff",
+                  borderRadius: 999,
+                  padding: "6px 10px",
+                  fontWeight: 600,
+                  cursor: selling || cancelling ? "not-allowed" : "pointer",
+                }}
+              >
+                {selling ? t("routes.details.marking") : t("routes.details.mark_as_sold")}
+              </button>
+
+              <button
+                onClick={markAsCancelled}
+                disabled={selling || cancelling}
+                title={t("routes.details.mark_as_cancelled")}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#b91c1c",
+                  borderRadius: 999,
+                  padding: "6px 10px",
+                  fontWeight: 600,
+                  cursor: selling || cancelling ? "not-allowed" : "pointer",
+                }}
+              >
+                {cancelling ? t("routes.details.cancelling") : t("routes.details.mark_as_cancelled")}
+              </button>
+            </div>
           )}
         </div>
 
@@ -454,29 +496,19 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTranslation as useTranslationMap } from "react-i18next";
 
-const originIcon = new L.DivIcon({
-  className: "leaflet-div-icon custom-marker origin",
-  html:
-    '<div style="background:#10b981;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;">1</div>',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
+function makePointIcon(pointIndex: number, totalPoints: number) {
+  const isOrigin = pointIndex === 0;
+  const isDestination = pointIndex === totalPoints - 1;
+  const size = isOrigin || isDestination ? 24 : 22;
+  const bg = isOrigin ? "#10b981" : isDestination ? "#f59e0b" : "#6366f1";
 
-const stopIcon = new L.DivIcon({
-  className: "leaflet-div-icon custom-marker stop",
-  html:
-    '<div style="background:#6366f1;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">•</div>',
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
-});
-
-const destIcon = new L.DivIcon({
-  className: "leaflet-div-icon custom-marker dest",
-  html:
-    '<div style="background:#f59e0b;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;">✔</div>',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
+  return new L.DivIcon({
+    className: `leaflet-div-icon custom-marker ${isOrigin ? "origin" : isDestination ? "dest" : "stop"}`,
+    html: `<div style="background:${bg};color:#fff;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">${pointIndex + 1}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
 
 function FitToPoints({ coords }: { coords: [number, number][] }) {
   const map = useMap();
@@ -499,13 +531,16 @@ function RouteMap({
 }) {
   const { t } = useTranslationMap();
 
-  const geo = points.filter(
-    (p) => typeof p.lat === "number" && typeof p.lon === "number"
-  ) as {
+  const geo = points
+    .map((p, idx) => ({ ...p, pointIndex: idx }))
+    .filter(
+      (p) => typeof p.lat === "number" && typeof p.lon === "number"
+    ) as {
     id: number;
     name: string;
     lat: number;
     lon: number;
+    pointIndex: number;
   }[];
 
   const center: [number, number] = geo.length ? [geo[0].lat, geo[0].lon] : [52.2297, 21.0122];
@@ -530,40 +565,28 @@ function RouteMap({
 
         <FitToPoints coords={poly} />
 
-        {/* origin */}
-        {points[0]?.lat != null && points[0]?.lon != null && (
-          <Marker position={[points[0].lat!, points[0].lon!]} icon={originIcon}>
-            <Popup>
-              <strong>{t("routes.details.origin")}</strong>
-              <div>{points[0].name}</div>
-            </Popup>
-          </Marker>
-        )}
+        {geo.map((p) => {
+          const idx = p.pointIndex;
+          const title =
+            idx === 0
+              ? t("routes.details.origin")
+              : idx === points.length - 1
+              ? t("routes.details.destination")
+              : t("routes.details.stop_n", { n: idx });
 
-        {/* stops */}
-        {points.slice(1, -1).map((p, i) =>
-          p.lat != null && p.lon != null ? (
-            <Marker key={`stop-${p.id}-${i}`} position={[p.lat, p.lon]} icon={stopIcon}>
+          return (
+            <Marker
+              key={`point-${p.id}-${idx}`}
+              position={[p.lat, p.lon]}
+              icon={makePointIcon(idx, points.length)}
+            >
               <Popup>
-                <strong>{t("routes.details.stop_n", { n: i + 1 })}</strong>
+                <strong>{title}</strong>
                 <div>{p.name}</div>
               </Popup>
             </Marker>
-          ) : null
-        )}
-
-        {/* destination */}
-        {points[points.length - 1]?.lat != null && points[points.length - 1]?.lon != null && (
-          <Marker
-            position={[points[points.length - 1].lat!, points[points.length - 1].lon!]}
-            icon={destIcon}
-          >
-            <Popup>
-              <strong>{t("routes.details.destination")}</strong>
-              <div>{points[points.length - 1].name}</div>
-            </Popup>
-          </Marker>
-        )}
+          );
+        })}
 
         {/* polyline if 2+ points */}
         {poly.length >= 2 && <Polyline positions={poly} color="#111827" weight={3} opacity={0.6} />}

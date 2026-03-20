@@ -20,6 +20,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import About from "./pages/About"; 
+import Contact from "./pages/Contact";
 import LocalisationsAdd from "./pages/LocalisationsAdd";
 
 import AccessGate from "./components/AccessGate";
@@ -34,39 +35,67 @@ function NavItem({
   to,
   label,
   collapsed,
+  end,
 }: {
   to: string;
   label: string;
   collapsed: boolean;
+  end?: boolean;
 }) {
   return (
     <NavLink
       to={to}
+      end={end}
+      title={collapsed ? label : undefined}
       style={({ isActive }) => ({
         display: "flex",
         alignItems: "center",
+        justifyContent: collapsed ? "center" : "flex-start",
         gap: 10,
-        padding: "8px 10px",
-        borderRadius: 8,
+        minHeight: 40,
+        padding: collapsed ? "8px" : "8px 10px",
+        borderRadius: 10,
         textDecoration: "none",
-        color: isActive ? "#111" : "#333",
+        color: isActive ? "#111827" : "#374151",
         background: isActive ? "#eef2ff" : "transparent",
-        border: isActive ? "1px solid #e5e7eb" : "1px solid transparent",
-        fontWeight: 500,
+        border: isActive ? "1px solid #c7d2fe" : "1px solid transparent",
+        fontWeight: 600,
+        transition: "background 0.15s ease, border-color 0.15s ease, color 0.15s ease",
       })}
     >
-      <span
-        aria-hidden
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: "#4f46e5",
-          opacity: 0.8,
-          flex: "0 0 auto",
-        }}
-      />
-      {!collapsed && <span>{label}</span>}
+      {({ isActive }) => (
+        <>
+          <span
+            aria-hidden
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 7,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: isActive ? "#4f46e5" : "#e5e7eb",
+              color: isActive ? "#fff" : "#4b5563",
+              fontSize: 12,
+              fontWeight: 700,
+              flex: "0 0 auto",
+            }}
+          >
+            {label.charAt(0).toUpperCase()}
+          </span>
+          {!collapsed && (
+            <span
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {label}
+            </span>
+          )}
+        </>
+      )}
     </NavLink>
   );
 }
@@ -84,29 +113,32 @@ export default function App() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: collapsed ? "64px 1fr" : "240px 1fr",
+        gridTemplateColumns: collapsed ? "72px 1fr" : "250px 1fr",
         minHeight: "100vh",
-        background: "#fff",
+        background: "#f8fafc",
       }}
     >
       {/* LEFT SIDEBAR */}
       <aside
         style={{
-          borderRight: "1px solid #eee",
-          padding: "12px 10px",
+          borderRight: "1px solid #e5e7eb",
+          padding: "12px",
           display: "grid",
           alignContent: "start",
           gap: 12,
           position: "sticky",
           top: 0,
           height: "100vh",
-          background: "#fff",
+          background: "#f8fafc",
+          overflowY: "auto",
+          overflowX: "hidden",
         }}
       >
         {/* Logo + hamburger */}
         <div
           style={{
             display: "flex",
+            flexDirection: collapsed ? "column" : "row",
             alignItems: "center",
             justifyContent: collapsed ? "center" : "space-between",
             gap: 8,
@@ -117,6 +149,7 @@ export default function App() {
             style={{
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: collapsed ? "center" : "flex-start",
               gap: 8,
               textDecoration: "none",
             }}
@@ -132,7 +165,7 @@ export default function App() {
             aria-label={t("top.toggleMenu")}
             onClick={() => setCollapsed((v) => !v)}
             style={{
-              border: "1px solid #eee",
+              border: "1px solid #e5e7eb",
               background: "#fafafa",
               borderRadius: 8,
               padding: 6,
@@ -146,8 +179,17 @@ export default function App() {
         </div>
 
         {/* NAVIGATION */}
-        <nav style={{ display: "grid", gap: 6 }}>
-          {canUseTransportTools && <NavItem to="/routes" collapsed={collapsed} label={t("nav.routes")} />}
+        <nav
+          style={{
+            display: "grid",
+            gap: 6,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 8,
+          }}
+        >
+          {canUseTransportTools && <NavItem to="/routes" end collapsed={collapsed} label={t("nav.routes")} />}
           {canUseTransportTools && <NavItem to="/routes/new" collapsed={collapsed} label={t("nav.addRoute")} />}
           {canUseTransportTools && <NavItem to="/my-routes" collapsed={collapsed} label={t("nav.myRoutes")} />}
           {canUseEmailVerifiedTools && <NavItem to="/chat" collapsed={collapsed} label={t("nav.chat")} />}
@@ -328,6 +370,7 @@ export default function App() {
             />
 
             <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
             <Route
               path="/localisations/new"
               element={
@@ -356,6 +399,9 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <Link to="/about" style={{ color: "#0a58ca", textDecoration: "underline" }}>
               {t("footer.aboutLink")}
+            </Link>
+            <Link to="/contact" style={{ color: "#0a58ca", textDecoration: "underline" }}>
+              {t("footer.contactLink")}
             </Link>
           </div>
           <span style={{ opacity: 0.6, fontSize: 12 }}>

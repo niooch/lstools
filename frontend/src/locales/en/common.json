@@ -20,7 +20,8 @@
     },
     "footer": {
         "version": "{{version}} · {{year}}",
-        "aboutLink": "About us"
+        "aboutLink": "About us",
+        "contactLink": "Contact"
     },
     "common": {
         "notFound": "404 Not Found"
@@ -214,11 +215,16 @@
                 "price_per_km": "Price / km",
                 "mark_as_sold": "Mark as sold",
                 "marking": "Marking…",
+                "mark_as_cancelled": "Cancel route",
+                "cancelling": "Cancelling…",
                 "confirm_mark_sold": "Mark this route as sold?",
+                "confirm_mark_cancelled": "Cancel this route?",
                 "sell_ok": "Route marked as sold.",
+                "cancel_ok": "Route cancelled.",
                 "errors": {
                     "load_failed": "Failed to load route.",
-                    "sell_failed": "Failed to mark as sold."
+                    "sell_failed": "Failed to mark as sold.",
+                    "cancel_failed": "Failed to cancel route."
                 },
                 "status": {
                     "active": "ACTIVE",
@@ -427,22 +433,28 @@
             "startTime": "Start time",
             "endDate": "End date",
             "endTime": "End time",
+            "distance": "Distance (km)",
             "price": "Price",
             "currency": "Currency",
             "crewSingle": "Single crew",
             "crewDouble": "Double crew",
             "save": "Save route",
             "loading": "Loading…",
+            "distanceSuggesting": "Calculating suggested distance…",
+            "distanceSuggested": "Server suggestion: {{km}} km (OSRM \u2192 Euclid fallback). You can edit this value.",
+            "distanceNoSuggestion": "Distance suggestion appears after selecting origin and destination.",
             "errors": {
                 "loadDicts": "Failed to load dictionaries.",
                 "pickKnownLocalisations": "Pick origin and destination from known localisations.",
-                "couldNotCreate": "Could not create route."
+                "couldNotCreate": "Could not create route.",
+                "invalidDistance": "Enter a valid non-negative distance."
             },
             "placeholders": {
                 "selectKnownLocalisation": "Select known localisation",
                 "vehicleOptional": "Vehicle type (optional)",
                 "addStop": "Add a stop…",
                 "stop": "Stop #{{n}}",
+                "distance": "e.g. 420.50",
                 "price": "0.00"
             },
             "buttons": {
@@ -520,6 +532,12 @@
         "about": {
             "title": "Our Mission",
             "body": "Our goal is to create a centralized exchange for Amazon loads. To achieve this, we need your daily engagement add and take loads from the board during your work. The more active users there are, the more loads you can sell."
+        },
+        "contact": {
+            "title": "Contact",
+            "body": "Need help? Reach us directly.",
+            "emailLabel": "Email",
+            "phoneLabel": "Phone"
         }
 
 }

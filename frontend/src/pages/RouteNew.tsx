@@ -28,6 +28,7 @@ type VehicleType = {
 type Crew = "single" | "double";
 
 const MAX_STOPS = 5;
+const SUGGEST_DISTANCE_PATH = "/api/transport/routes/suggest-distance";
 
 /* ---------- component ---------- */
 export default function RouteNew() {
@@ -53,6 +54,10 @@ export default function RouteNew() {
   const [vehName, setVehName] = useState("");
   const [crew, setCrew] = useState<Crew>("single");
   const [price, setPrice] = useState<string>("");
+  const [lengthKm, setLengthKm] = useState<string>("");
+  const [lengthDirty, setLengthDirty] = useState(false);
+  const [suggestedLengthKm, setSuggestedLengthKm] = useState<string | null>(null);
+  const [suggestingDistance, setSuggestingDistance] = useState(false);
   const currency = "EUR" as const;
 
   // pretty addresses (best-effort using your proxy)
@@ -71,6 +76,24 @@ export default function RouteNew() {
     for (const v of vehTypes) m[v.name.toLowerCase()] = v;
     return m;
   }, [vehTypes]);
+
+  const selectedOriginId = useMemo(
+    () => locByName[originName.trim().toLowerCase()]?.id,
+    [locByName, originName]
+  );
+  const selectedDestinationId = useMemo(
+    () => locByName[destName.trim().toLowerCase()]?.id,
+    [destName, locByName]
+  );
+  const selectedStopIds = useMemo(() => {
+    if (!selectedOriginId || !selectedDestinationId) return [] as number[];
+    return stopNames
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0)
+      .map((n) => locByName[n.toLowerCase()]?.id)
+      .filter((id): id is number => typeof id === "number")
+      .filter((id) => id !== selectedOriginId && id !== selectedDestinationId);
+  }, [locByName, selectedDestinationId, selectedOriginId, stopNames]);
 
   // load dictionaries
   useEffect(() => {
@@ -122,38 +145,80 @@ export default function RouteNew() {
   useEffect(() => { void resolveAddressFor(originName, setOriginAddr, locByName); }, [originName, locByName]);
   useEffect(() => { void resolveAddressFor(destName, setDestAddr, locByName); }, [destName, locByName]);
 
+  // server-side distance suggestion (OSRM -> Euclid fallback)
+  useEffect(() => {
+    let on = true;
+
+    async function suggestDistance() {
+      if (!selectedOriginId || !selectedDestinationId) {
+        if (!on) return;
+        setSuggestingDistance(false);
+        setSuggestedLengthKm(null);
+        if (!lengthDirty) setLengthKm("");
+        return;
+      }
+
+      setSuggestingDistance(true);
+      try {
+        const resp = await api.post(SUGGEST_DISTANCE_PATH, {
+          origin: selectedOriginId,
+          destination: selectedDestinationId,
+          stop_ids: selectedStopIds,
+        });
+        if (!on) return;
+        const raw = resp?.data?.length_km;
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed)) {
+          setSuggestedLengthKm(null);
+          return;
+        }
+        const suggested = parsed.toFixed(2);
+        setSuggestedLengthKm(suggested);
+        if (!lengthDirty) setLengthKm(suggested);
+      } catch {
+        if (!on) return;
+        setSuggestedLengthKm(null);
+      } finally {
+        if (on) setSuggestingDistance(false);
+      }
+    }
+
+    void suggestDistance();
+    return () => {
+      on = false;
+    };
+  }, [lengthDirty, selectedDestinationId, selectedOriginId, selectedStopIds]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (posting) return;
 
     setErr(null);
     try {
-      const originId = locByName[originName.trim().toLowerCase()]?.id;
-      const destId = locByName[destName.trim().toLowerCase()]?.id;
+      const originId = selectedOriginId;
+      const destId = selectedDestinationId;
       if (!originId || !destId) {
         throw new Error(t("routeNew.errors.pickKnownLocalisations"));
       }
 
-      // map stopNames (excluding empty trailing input and excluding origin/destination if duplicated)
-      const stopIds = stopNames
-        .map((n) => n.trim())
-        .filter((n) => n.length > 0)
-        .map((n) => locByName[n.toLowerCase()]?.id)
-        .filter((id): id is number => typeof id === "number")
-        .filter((id) => id !== originId && id !== destId);
-
       const vehId = vehByName[vehName.trim().toLowerCase()]?.id;
       const time_start = combineLocalDateTimeToISO(dateStart, timeStart);
       const time_end = combineLocalDateTimeToISO(dateEnd, timeEnd);
+      const hasLength = lengthKm.trim().length > 0;
+      const parsedLength = hasLength ? Number(lengthKm) : undefined;
+      if (parsedLength !== undefined && (!Number.isFinite(parsedLength) || parsedLength < 0)) {
+        throw new Error(t("routeNew.errors.invalidDistance"));
+      }
 
       const payload: any = {
         origin: originId,
         destination: destId,
-        stop_ids: stopIds,
+        stop_ids: selectedStopIds,
         vehicle_type: vehId || undefined,
         crew,
         currency,
         price: price ? Number(price) : undefined,
+        length_km: parsedLength,
         time_start,
         time_end,
       };
@@ -353,6 +418,23 @@ export default function RouteNew() {
 
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <label style={lbl}>
+                <span>{t("routeNew.distance")}</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                  value={lengthKm}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setLengthKm(next);
+                    setLengthDirty(next.trim().length > 0);
+                  }}
+                  placeholder={t("routeNew.placeholders.distance")}
+                  style={inp}
+                />
+              </label>
+              <label style={lbl}>
                 <span>{t("routeNew.price")}</span>
                 <input
                   type="number"
@@ -378,6 +460,14 @@ export default function RouteNew() {
                   <span>{t("routeNew.crewDouble")}</span>
                 </label>
               </div>
+            </div>
+
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
+              {suggestingDistance
+                ? t("routeNew.distanceSuggesting")
+                : suggestedLengthKm
+                ? t("routeNew.distanceSuggested", { km: suggestedLengthKm })
+                : t("routeNew.distanceNoSuggestion")}
             </div>
           </section>
 

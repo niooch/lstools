@@ -4,9 +4,12 @@ from .serializers import VehicleTypeSerializer, RouteSerializer, RoutePhotoSeria
 from .permissions import IsOwnerOrReadOnly
 from users.permissions import IsFullyVerified
 from .filters import RouteFilter
+from . import services as svc
+from localisations.models import Localisation
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiExample, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import viewsets, permissions, filters as drf_filters
+from rest_framework import serializers as drf_serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status as drf_status
@@ -21,6 +24,33 @@ from drf_spectacular.utils import extend_schema
 from django.shortcuts import get_object_or_404
 
 from decimal import Decimal, ROUND_HALF_UP
+
+
+class SuggestDistanceRequestSerializer(drf_serializers.Serializer):
+    origin = drf_serializers.IntegerField(min_value=1)
+    destination = drf_serializers.IntegerField(min_value=1)
+    stop_ids = drf_serializers.ListField(
+        child=drf_serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=True,
+    )
+
+    def validate_stop_ids(self, value):
+        if len(value) > 5:
+            raise drf_serializers.ValidationError("At most 5 stops allowed.")
+        if len(set(value)) != len(value):
+            raise drf_serializers.ValidationError("Duplicate stops are not allowed.")
+        return value
+
+    def validate(self, attrs):
+        origin = attrs["origin"]
+        destination = attrs["destination"]
+        stop_ids = attrs.get("stop_ids", [])
+        if origin == destination:
+            raise drf_serializers.ValidationError({"destination": "Destination must be different from origin."})
+        if any(lid in (origin, destination) for lid in stop_ids):
+            raise drf_serializers.ValidationError({"stop_ids": "Stops cannot include origin or destination."})
+        return attrs
 
 
 def auto_cancel_started_routes():
@@ -181,7 +211,7 @@ class RouteViewSet(viewsets.ModelViewSet):
     
     def get_throttles(self):
         self.throttle_scope = "routes-write" if self.action in {
-                "create", "update", "partial_update", "destroy", "sell", "cancel"
+                "create", "update", "partial_update", "destroy", "sell", "cancel", "suggest_distance"
                 } else None
         return super().get_throttles()
 
@@ -269,6 +299,44 @@ class RouteViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(ser.data)
         ser = self.get_serializer(qs, many=True)
         return Response(ser.data)
+
+    @extend_schema(
+            tags=["Transport"],
+            summary="Suggest distance for route points",
+            description="Returns server-calculated length_km using OSRM with Euclidean fallback.",
+            request=SuggestDistanceRequestSerializer,
+            responses={200: OpenApiTypes.OBJECT},
+            )
+    @action(detail=False, methods=["post"], url_path="suggest-distance")
+    def suggest_distance(self, request):
+        serializer = SuggestDistanceRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        origin_id = serializer.validated_data["origin"]
+        destination_id = serializer.validated_data["destination"]
+        stop_ids = serializer.validated_data.get("stop_ids", [])
+
+        needed_ids = [origin_id, destination_id, *stop_ids]
+        loc_map = Localisation.objects.in_bulk(needed_ids)
+        missing = [lid for lid in needed_ids if lid not in loc_map]
+        if missing:
+            return Response(
+                {"detail": f"Localisation id {missing[0]} not found."},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
+        ordered_points = [loc_map[origin_id], *[loc_map[sid] for sid in stop_ids], loc_map[destination_id]]
+        total = Decimal("0.00")
+        for a, b in zip(ordered_points, ordered_points[1:]):
+            total += Decimal(
+                svc.distance_km_cached(
+                    float(a.latitude), float(a.longitude),
+                    float(b.latitude), float(b.longitude),
+                )
+            )
+
+        total = total.quantize(Decimal("0.01"))
+        return Response({"length_km": str(total)})
 
 
     @extend_schema(

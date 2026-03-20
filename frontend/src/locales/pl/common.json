@@ -20,7 +20,8 @@
     },
     "footer": {
         "version": "{{version}} · {{year}}",
-        "aboutLink": "O nas"
+        "aboutLink": "O nas",
+        "contactLink": "Kontakt"
     },
     "common": {
         "notFound": "404 Nie znaleziono"
@@ -224,11 +225,16 @@
             "price_per_km": "Cena / km",
             "mark_as_sold": "Oznacz jako sprzedaną",
             "marking": "Oznaczanie…",
+            "mark_as_cancelled": "Anuluj trasę",
+            "cancelling": "Anulowanie…",
             "confirm_mark_sold": "Oznaczyć tę trasę jako sprzedaną?",
+            "confirm_mark_cancelled": "Anulować tę trasę?",
             "sell_ok": "Trasę oznaczono jako sprzedaną.",
+            "cancel_ok": "Trasę anulowano.",
             "errors": {
                 "load_failed": "Nie udało się wczytać trasy.",
-                "sell_failed": "Nie udało się oznaczyć jako sprzedaną."
+                "sell_failed": "Nie udało się oznaczyć jako sprzedaną.",
+                "cancel_failed": "Nie udało się anulować trasy."
             },
             "status": {
                 "active": "AKTYWNA",
@@ -430,22 +436,28 @@
         "startTime": "Godzina rozpoczęcia",
         "endDate": "Data zakończenia",
         "endTime": "Godzina zakończenia",
+        "distance": "Dystans (km)",
         "price": "Cena",
         "currency": "Waluta",
         "crewSingle": "Jedna obsada",
         "crewDouble": "Podwójna obsada",
         "save": "Zapisz trasę",
         "loading": "Ładowanie…",
+        "distanceSuggesting": "Wyliczanie sugerowanego dystansu…",
+        "distanceSuggested": "Sugestia serwera: {{km}} km (fallback OSRM \u2192 Euklides). Możesz edytować tę wartość.",
+        "distanceNoSuggestion": "Sugestia dystansu pojawi się po wybraniu punktu startowego i docelowego.",
         "errors": {
             "loadDicts": "Nie udało się wczytać słowników.",
             "pickKnownLocalisations": "Wybierz punkt startowy i docelowy z listy znanych lokalizacji.",
-            "couldNotCreate": "Nie udało się utworzyć trasy."
+            "couldNotCreate": "Nie udało się utworzyć trasy.",
+            "invalidDistance": "Wpisz poprawny, nieujemny dystans."
         },
         "placeholders": {
             "selectKnownLocalisation": "Wybierz znaną lokalizację",
             "vehicleOptional": "Typ pojazdu (opcjonalnie)",
             "addStop": "Dodaj przystanek…",
             "stop": "Przystanek nr {{n}}",
+            "distance": "np. 420.50",
             "price": "0.00"
         },
         "buttons": {
@@ -523,6 +535,12 @@
     "about": {
         "title": "Nasza Misja",
         "body": "Naszym celem jest stworzenie scentralizowanej giełdy ładunków Amazon. Aby to osiągnąć, potrzebujemy Twojego codziennego zaangażowania dodawaj i pobieraj ładunki z tablicy podczas pracy. Im więcej aktywnych użytkowników, tym więcej ładunków możesz sprzedać."
+    },
+    "contact": {
+        "title": "Kontakt",
+        "body": "Potrzebujesz pomocy? Skontaktuj się z nami bezpośrednio.",
+        "emailLabel": "E-mail",
+        "phoneLabel": "Telefon"
     }
 
 }

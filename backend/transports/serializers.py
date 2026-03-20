@@ -70,6 +70,13 @@ class RouteSerializer(serializers.ModelSerializer):
     owner_id = serializers.IntegerField(source="owner.id", read_only=True)
     price_per_km = serializers.SerializerMethodField(read_only=True)
 
+    length_km = serializers.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
     crew = serializers.ChoiceField(choices=CrewType.choices, default=CrewType.SINGLE)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     currency = serializers.ChoiceField(choices=[Currency.EUR], default=Currency.EUR, required=False)
@@ -98,7 +105,7 @@ class RouteSerializer(serializers.ModelSerializer):
             "owner", "owner_id", "created_at", "updated_at",
         )
         read_only_fields = (
-            "id", "length_km", "price_per_km", "stops",
+            "id", "price_per_km", "stops",
             "status", "sold_at", "cancelled_at",
             "owner", "owner_id", "created_at", "updated_at",
         )
@@ -162,18 +169,26 @@ class RouteSerializer(serializers.ModelSerializer):
             rows.append(RouteStop(route=route, order=idx, localisation=found[lid]))
         RouteStop.objects.bulk_create(rows)
 
+    def _normalize_length_km(self, value):
+        if value is None:
+            return None
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
     # ---------------- create / update ----------------
 
     def create(self, validated_data):
         stop_ids = validated_data.pop("stop_ids", [])
+        manual_length = validated_data.pop("length_km", None)
         # enforce limit BEFORE creating the route
         stops_locs = self._validate_and_fetch_stops(stop_ids)
         validated_data["currency"] = Currency.EUR
 
         route = Route.objects.create(owner=self.context["request"].user, **validated_data)
 
-        # compute and save length_km
-        route.length_km = self._compute_length_sum(route.origin, stops_locs, route.destination)
+        if manual_length is None:
+            route.length_km = self._compute_length_sum(route.origin, stops_locs, route.destination)
+        else:
+            route.length_km = self._normalize_length_km(manual_length)
         route.save(update_fields=["length_km"])
 
         # persist stops
@@ -181,9 +196,14 @@ class RouteSerializer(serializers.ModelSerializer):
         return route
 
     def update(self, instance, validated_data):
+        previous_origin_id = instance.origin_id
+        previous_destination_id = instance.destination_id
+
         # If caller provided stop_ids, validate & set; else keep existing
         provided = "stop_ids" in validated_data
         stop_ids = validated_data.pop("stop_ids", None)
+        manual_length_provided = "length_km" in validated_data
+        manual_length = validated_data.pop("length_km", None)
         validated_data["currency"] = Currency.EUR
 
         instance = super().update(instance, validated_data)
@@ -197,9 +217,23 @@ class RouteSerializer(serializers.ModelSerializer):
                 for s in instance.stops.select_related("localisation").order_by("order")
             ]
 
-        # recompute length_km after any change to origin/destination or stops
-        instance.length_km = self._compute_length_sum(instance.origin, stops_locs, instance.destination)
-        instance.save(update_fields=["length_km", "updated_at"])
+        points_changed = (
+            provided
+            or instance.origin_id != previous_origin_id
+            or instance.destination_id != previous_destination_id
+        )
+
+        if manual_length_provided:
+            if manual_length is None:
+                instance.length_km = self._compute_length_sum(instance.origin, stops_locs, instance.destination)
+            else:
+                instance.length_km = self._normalize_length_km(manual_length)
+            instance.save(update_fields=["length_km", "updated_at"])
+            return instance
+
+        if points_changed or instance.length_km is None:
+            instance.length_km = self._compute_length_sum(instance.origin, stops_locs, instance.destination)
+            instance.save(update_fields=["length_km", "updated_at"])
         return instance
 
 
